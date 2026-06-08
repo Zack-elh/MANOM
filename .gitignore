@@ -45,3 +45,6 @@ dev.log
 
 # fonts (too large, load from CDN instead)
 /public/fonts/
+
+# Source images (already in public/images)
+/Images/
