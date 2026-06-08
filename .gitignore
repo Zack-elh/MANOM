@@ -42,3 +42,6 @@ next-env.d.ts
 
 # misc
 dev.log
+
+# fonts (too large, load from CDN instead)
+/public/fonts/
