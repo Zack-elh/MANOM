@@ -93,7 +93,7 @@ export default function AuthPage() {
                 </button>
               </div>
 
-              <button type="submit" className="btn btn-primary w-full mt-2">
+              <button type="submit" className="btn btn-primary w-full mt-3">
                 Sign In & Book
               </button>
             </form>
