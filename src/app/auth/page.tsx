@@ -54,13 +54,13 @@ export default function AuthPage() {
             >
               Sign In
             </h1>
-            <p className="text-text-tertiary text-sm mb-12" style={{ fontFamily: 'var(--font-ui)' }}>
+            <p className="text-text-tertiary text-sm mb-8" style={{ fontFamily: 'var(--font-ui)' }}>
               Enter your details to access booking
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
                   Email
                 </label>
                 <input
@@ -73,7 +73,7 @@ export default function AuthPage() {
               </div>
 
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
                   Password
                 </label>
                 <input
@@ -85,7 +85,7 @@ export default function AuthPage() {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary w-full mt-8">
+              <button type="submit" className="btn btn-primary w-full mt-6">
                 Sign In & Book
               </button>
             </form>
@@ -107,13 +107,13 @@ export default function AuthPage() {
             >
               Sign Up
             </h1>
-            <p className="text-text-tertiary text-sm mb-12" style={{ fontFamily: 'var(--font-ui)' }}>
+            <p className="text-text-tertiary text-sm mb-8" style={{ fontFamily: 'var(--font-ui)' }}>
               Create an account to book your experience
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
                   Full Name
                 </label>
                 <input
@@ -126,7 +126,7 @@ export default function AuthPage() {
               </div>
 
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
                   Email
                 </label>
                 <input
@@ -139,7 +139,7 @@ export default function AuthPage() {
               </div>
 
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
                   Password
                 </label>
                 <input
@@ -151,14 +151,14 @@ export default function AuthPage() {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary w-full mt-8">
+              <button type="submit" className="btn btn-primary w-full mt-6">
                 Create Account & Book
               </button>
             </form>
           </div>
         </div>
 
-        <p className="text-center text-sm text-text-tertiary mt-8" style={{ fontFamily: 'var(--font-ui)' }}>
+        <p className="text-center text-sm text-text-tertiary mt-4" style={{ fontFamily: 'var(--font-ui)' }}>
           {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <button
             onClick={toggleMode}
