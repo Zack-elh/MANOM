@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation'
 
 export default function AuthPage() {
   const router = useRouter()
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -16,6 +18,13 @@ export default function AuthPage() {
       localStorage.setItem('manom_user', email)
       router.push('/booking')
     }
+  }
+
+  const toggleMode = () => {
+    setMode(mode === 'login' ? 'signup' : 'login')
+    setEmail('')
+    setPassword('')
+    setName('')
   }
 
   return (
@@ -28,56 +37,135 @@ export default function AuthPage() {
           Back to home
         </Link>
 
-        <span className="section-label">Welcome</span>
-        <h1
-          className="text-3xl md:text-5xl text-black mb-4 leading-[1.1]"
-          style={{ fontFamily: 'var(--font-heading)' }}
-        >
-          Sign In
-        </h1>
-        <p className="text-text-tertiary text-sm mb-12" style={{ fontFamily: 'var(--font-ui)' }}>
-          Enter your details to access booking
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
-              style={{ fontFamily: 'var(--font-ui)' }}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
-              style={{ fontFamily: 'var(--font-ui)' }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary w-full mt-8"
+        <div className="relative overflow-hidden" style={{ minHeight: mode === 'signup' ? '520px' : '420px' }}>
+          {/* Sign In Form */}
+          <div
+            className="w-full transition-all duration-500 ease-in-out"
+            style={{
+              transform: mode === 'login' ? 'translateX(0) scale(1)' : 'translateX(-50px) scale(0.95)',
+              opacity: mode === 'login' ? 1 : 0,
+              pointerEvents: mode === 'login' ? 'auto' : 'none',
+            }}
           >
-            Sign In & Book
-          </button>
-        </form>
+            <span className="section-label">Welcome Back</span>
+            <h1
+              className="text-3xl md:text-5xl text-black mb-4 leading-[1.1]"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              Sign In
+            </h1>
+            <p className="text-text-tertiary text-sm mb-12" style={{ fontFamily: 'var(--font-ui)' }}>
+              Enter your details to access booking
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
+                  style={{ fontFamily: 'var(--font-ui)' }}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
+                  style={{ fontFamily: 'var(--font-ui)' }}
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary w-full mt-8">
+                Sign In & Book
+              </button>
+            </form>
+          </div>
+
+          {/* Sign Up Form */}
+          <div
+            className="w-full absolute top-0 left-0 transition-all duration-500 ease-in-out"
+            style={{
+              transform: mode === 'signup' ? 'translateX(0) scale(1)' : 'translateX(50px) scale(0.95)',
+              opacity: mode === 'signup' ? 1 : 0,
+              pointerEvents: mode === 'signup' ? 'auto' : 'none',
+            }}
+          >
+            <span className="section-label">Create Account</span>
+            <h1
+              className="text-3xl md:text-5xl text-black mb-4 leading-[1.1]"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              Sign Up
+            </h1>
+            <p className="text-text-tertiary text-sm mb-12" style={{ fontFamily: 'var(--font-ui)' }}>
+              Create an account to book your experience
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
+                  style={{ fontFamily: 'var(--font-ui)' }}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
+                  style={{ fontFamily: 'var(--font-ui)' }}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
+                  style={{ fontFamily: 'var(--font-ui)' }}
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary w-full mt-8">
+                Create Account & Book
+              </button>
+            </form>
+          </div>
+        </div>
 
         <p className="text-center text-sm text-text-tertiary mt-8" style={{ fontFamily: 'var(--font-ui)' }}>
-          <Link href="/" className="text-black font-medium hover:text-verdigris transition-colors">
-            Back to Home
-          </Link>
+          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+          <button
+            onClick={toggleMode}
+            className="text-black font-medium hover:text-verdigris transition-colors"
+          >
+            {mode === 'login' ? 'Sign Up' : 'Sign In'}
+          </button>
         </p>
       </div>
     </div>
