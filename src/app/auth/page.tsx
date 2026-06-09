@@ -113,13 +113,18 @@ export default function AuthPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
-                  Full Name
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider" style={{ fontFamily: 'var(--font-ui)' }}>
+                    Password
+                  </label>
+                  <button type="button" className="text-xs text-verdigris hover:text-black transition-colors" style={{ fontFamily: 'var(--font-ui)' }}>
+                    Forgot Password?
+                  </button>
+                </div>
                 <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
                   style={{ fontFamily: 'var(--font-ui)' }}
                 />
