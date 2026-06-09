@@ -60,10 +60,10 @@ export const Team: React.FC = () => {
   return (
     <section id="team" ref={sectionRef} className="section-padding bg-white">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <span className="label-tag text-[#3c6057] tracking-[0.3em] mb-4 block">The Masters</span>
+        <div className="text-center mb-8 md:mb-12">
+          <span className="label-tag text-[#3c6057] tracking-[0.3em] mb-3 md:mb-4 block">The Masters</span>
           <h2
-            className="text-5xl md:text-6xl text-[#0b0b0b] mb-6"
+            className="text-3xl md:text-5xl lg:text-6xl text-[#0b0b0b] mb-4 md:mb-6"
             style={{ fontFamily: 'var(--font-heading)' }}
           >
             Our Team

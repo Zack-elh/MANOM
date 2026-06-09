@@ -17,7 +17,7 @@ export const Hero: React.FC = () => {
         y: 60,
         opacity: 0,
         duration: 1.4,
-        delay: 3,
+        delay: 2.8,
       })
       .from(ctaRef.current, {
         y: 20,
@@ -32,28 +32,28 @@ export const Hero: React.FC = () => {
   return (
     <section
       ref={heroRef}
-      className="relative h-screen flex flex-col items-center justify-center overflow-hidden"
+      className="relative w-full flex flex-col items-center justify-center overflow-hidden bg-[#b0b0b0]"
     >
-      {/* Background Image - only in hero */}
-      <div className="absolute inset-0">
+      {/* Background Image */}
+      <div className="absolute inset-0 w-full h-full">
         <img
           src="/images/hero.jpg"
           alt="MANOM"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
         />
       </div>
 
-      {/* MANOM - White */}
+      {/* MANOM */}
       <h1
         ref={titleRef}
         className="relative z-10 select-none w-full text-center px-4"
         style={{
           fontFamily: "'Sora', sans-serif",
-          fontSize: 'clamp(4rem, 16vw, 14rem)',
+          fontSize: 'clamp(3rem, 16vw, 14rem)',
           fontWeight: 700,
           lineHeight: 0.85,
           color: '#ffffff',
-          letterSpacing: '0.25em',
+          letterSpacing: '0.2em',
           textTransform: 'uppercase',
           filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))',
         }}
@@ -62,9 +62,12 @@ export const Hero: React.FC = () => {
       </h1>
 
       {/* CTA */}
-      <div ref={ctaRef} className="relative z-10 mt-12">
+      <div ref={ctaRef} className="relative z-10 mt-8 md:mt-12">
         <Link href="/booking">
-          <button className="px-12 py-5 text-xs font-semibold tracking-[0.15em] uppercase bg-[#0b0b0b] text-white hover:bg-[#2c2c2c] transition-all duration-300" style={{ fontFamily: 'var(--font-ui)' }}>
+          <button
+            className="px-8 md:px-12 py-4 md:py-5 text-[10px] md:text-xs font-semibold tracking-[0.15em] uppercase bg-[#0b0b0b] text-white hover:bg-[#2c2c2c] transition-all duration-300"
+            style={{ fontFamily: 'var(--font-ui)' }}
+          >
             Book Now
           </button>
         </Link>

@@ -150,20 +150,12 @@ h4, h5, h6 {
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  display: none;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(60, 96, 87, 0.3);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(60, 96, 87, 0.5);
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* =====================================================
