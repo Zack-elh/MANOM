@@ -1,115 +1,153 @@
-'use client';
+'use client'
 
-import React from 'react';
+import { useScroll, useTransform, motion } from 'framer-motion'
+import { useRef } from 'react'
+import Link from 'next/link'
+
+const ITEM_WIDTH = 340
+const GAP = 30
 
 const services = [
   {
     id: 1,
     title: 'Signature Haircut',
-    description: 'Precision cut tailored to your face shape and lifestyle. Includes consultation, shampoo, and styling.',
+    description: 'Precision cut tailored to your face shape and lifestyle.',
     duration: '45 min',
-    price: 'From $45',
-    image: '/images/services/haircut.jpg',
+    price: '$45',
+    image: '/images/services/Haircut.jpg',
   },
   {
     id: 2,
     title: 'Royal Beard Sculpt',
-    description: 'Expert beard shaping with hot towel treatment, precision trim, and beard oil finish.',
+    description: 'Expert beard shaping with hot towel treatment.',
     duration: '30 min',
-    price: 'From $35',
-    image: '/images/services/beard.jpg',
+    price: '$35',
+    image: '/images/services/Beard sculpt.webp',
   },
   {
     id: 3,
     title: 'The Full Works',
-    description: 'Our complete grooming experience. Haircut, beard sculpt, hot towel facial, and scalp massage.',
+    description: 'Our complete grooming experience.',
     duration: '90 min',
-    price: 'From $95',
-    image: '/images/services/full-works.jpg',
+    price: '$95',
+    image: '/images/services/full work.jpg',
   },
   {
     id: 4,
     title: 'Hot Towel Shave',
-    description: 'Traditional straight razor shave with premium products and luxurious hot towel wrapping.',
+    description: 'Traditional straight razor shave with premium products.',
     duration: '40 min',
-    price: 'From $40',
-    image: '/images/services/shave.jpg',
+    price: '$40',
+    image: '/images/services/Hot Towel Shave.jpg',
   },
   {
     id: 5,
     title: 'Scalp Treatment',
-    description: 'Deep cleansing scalp therapy with essential oils and massage to promote healthy hair growth.',
+    description: 'Deep cleansing scalp therapy with essential oils.',
     duration: '30 min',
-    price: 'From $30',
-    image: '/images/services/scalp.jpg',
+    price: '$30',
+    image: '/images/services/Scalp Treatment.jpg',
   },
   {
     id: 6,
     title: 'Hair Design',
-    description: 'Creative line work and patterns for the modern gentleman who wants to make a statement.',
+    description: 'Creative line work and patterns.',
     duration: '60 min',
-    price: 'From $55',
-    image: '/images/services/design.jpg',
+    price: '$55',
+    image: '/images/services/Hair Design.jpg',
   },
-];
+]
 
 export const Services: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start start', 'end end'],
+  })
+
+  const totalDistance = (services.length - 1) * (ITEM_WIDTH + GAP)
+  const x = useTransform(scrollYProgress, [0, 1], [0, -totalDistance])
+
   return (
-    <section id="services" className="section-padding bg-[#f5f5f5]">
-      <div className="max-w-7xl mx-auto">
-        {/* Section Header */}
+    <section id="services">
+      {/* Heading */}
+      <div className="max-w-[1200px] mx-auto px-6 md:px-10" style={{ paddingTop: 'var(--spacing-section)' }}>
         <div className="text-center mb-16">
-          <span className="label-tag text-[#3c6057] tracking-[0.3em] mb-4 block">What We Offer</span>
+          <span className="section-label">What We Offer</span>
           <h2
-            className="text-5xl md:text-6xl text-[#0b0b0b] mb-6"
+            className="text-3xl md:text-5xl lg:text-[3.5rem] text-black mb-6"
             style={{ fontFamily: 'var(--font-heading)' }}
           >
             Our Services
           </h2>
-          <p className="text-[#666] max-w-2xl mx-auto text-lg">
-            Each service is crafted with precision and delivered with the care you deserve.
-          </p>
         </div>
+      </div>
 
-        {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {services.map((service) => (
-            <div
-              key={service.id}
-              className="card overflow-hidden group cursor-pointer"
-            >
-              {/* Image */}
-              <div className="relative h-56 overflow-hidden">
-                <img
-                  src={service.image}
-                  alt={service.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0b]/60 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-                  <span className="gold-badge">{service.duration}</span>
-                  <span className="text-[#d4af37] font-semibold" style={{ fontFamily: 'var(--font-ui)' }}>
-                    {service.price}
-                  </span>
+      {/* Scroll container */}
+      <div ref={containerRef} className="relative" style={{ height: '300vh', backgroundColor: '#0a0a0a' }}>
+        <div className="sticky top-0 h-screen flex items-center overflow-hidden">
+          <motion.div
+            className="flex items-center pl-[calc(50vw-170px)] md:pl-[calc(50vw-170px)]"
+            style={{ x, gap: GAP }}
+          >
+            {services.map((service) => (
+              <div
+                key={service.id}
+                className="shrink-0 bg-white overflow-hidden shadow-lg flex flex-col"
+                style={{ width: ITEM_WIDTH, height: 480 }}
+              >
+                <div className="relative h-[200px] overflow-hidden">
+                  <img
+                    src={service.image}
+                    alt={service.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-4 right-4">
+                    <span
+                      className="bg-white/90 backdrop-blur-sm text-black text-xs font-semibold px-3 py-1.5"
+                      style={{ fontFamily: 'var(--font-ui)' }}
+                    >
+                      {service.duration}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-6 flex flex-col flex-1">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3
+                      className="text-lg text-black"
+                      style={{ fontFamily: 'var(--font-heading)' }}
+                    >
+                      {service.title}
+                    </h3>
+                    <span
+                      className="text-sm font-semibold text-black shrink-0 ml-4"
+                      style={{ fontFamily: 'var(--font-ui)' }}
+                    >
+                      {service.price}
+                    </span>
+                  </div>
+                  <p
+                    className="text-text-tertiary text-sm mb-5 leading-relaxed flex-1"
+                    style={{ fontFamily: 'var(--font-ui)' }}
+                  >
+                    {service.description}
+                  </p>
+                  <Link href="/auth">
+                    <button
+                      className="w-full py-3 text-[11px] font-semibold tracking-[0.1em] uppercase border border-black/[0.08] text-black hover:bg-black hover:text-white transition-all duration-300"
+                      style={{ fontFamily: 'var(--font-ui)' }}
+                    >
+                      Book Now
+                    </button>
+                  </Link>
                 </div>
               </div>
-
-              {/* Content */}
-              <div className="p-6">
-                <h3
-                  className="text-xl text-[#0b0b0b] mb-3 group-hover:text-[#3c6057] transition-colors"
-                  style={{ fontFamily: 'var(--font-heading)' }}
-                >
-                  {service.title}
-                </h3>
-                <p className="text-[#666] text-sm leading-relaxed">
-                  {service.description}
-                </p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </motion.div>
         </div>
       </div>
     </section>
-  );
-};
+  )
+}

@@ -1,63 +1,97 @@
 'use client'
 
-import { motion } from 'framer-motion'
-
 const items = [
-  { id: 1, label: 'Precision Cut', image: '/images/gallery/8663131e764264cfe2b4a28951b51464.jpg', color: '#3c6057' },
-  { id: 2, label: 'Beard Sculpt', image: '/images/gallery/e34e8e86fcb6b5e1fbeef4bbb6759a3f.jpg', color: '#d4af37' },
-  { id: 3, label: 'Classic Style', image: '/images/gallery/cfa208aeb173ae8ab9d354b5f10968ef.jpg', color: '#3c6057' },
-  { id: 4, label: 'Modern Look', image: '/images/gallery/42f19ce49a080c96dee2899b62eddcdd.jpg', color: '#d4af37' },
-  { id: 5, label: 'Finishing Touch', image: '/images/gallery/1519b22600113aaa6e414032b78a2af8.jpg', color: '#3c6057' },
+  { id: 1, label: 'Precision Cut', image: '/images/gallery/8663131e764264cfe2b4a28951b51464.jpg' },
+  { id: 2, label: 'Beard Sculpt', image: '/images/gallery/e34e8e86fcb6b5e1fbeef4bbb6759a3f.jpg' },
+  { id: 3, label: 'Classic Style', image: '/images/gallery/cfa208aeb173ae8ab9d354b5f10968ef.jpg' },
+  { id: 4, label: 'Modern Look', image: '/images/gallery/42f19ce49a080c96dee2899b62eddcdd.jpg' },
+  { id: 5, label: 'Finishing Touch', image: '/images/gallery/1519b22600113aaa6e414032b78a2af8.jpg' },
 ]
+
+const ITEM_COUNT = items.length
+const ANGLE = 360 / ITEM_COUNT
+const RADIUS = 280
 
 export const Gallery: React.FC = () => {
   return (
-    <section id="gallery" className="bg-white">
-      {/* Header */}
-      <div className="py-12 md:py-20 text-center px-4">
-        <span className="label-tag text-[#3c6057] tracking-[0.3em] mb-3 md:mb-4 block">Our Work</span>
-        <h2
-          className="text-3xl md:text-5xl lg:text-6xl text-[#0b0b0b]"
-          style={{ fontFamily: 'var(--font-heading)' }}
-        >
-          Gallery
-        </h2>
+    <section
+      id="gallery"
+      className="bg-white overflow-hidden"
+    >
+      {/* Heading */}
+      <div className="max-w-[1200px] mx-auto px-6 md:px-10" style={{ paddingTop: 'var(--spacing-section)' }}>
+        <div className="text-center mb-16">
+          <span className="section-label">Our Work</span>
+          <h2
+            className="text-3xl md:text-5xl lg:text-[3.5rem] text-black"
+            style={{ fontFamily: 'var(--font-heading)' }}
+          >
+            Gallery
+          </h2>
+        </div>
       </div>
 
-      {/* Grid */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 pb-12 md:pb-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-        {items.map((item, i) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.6, delay: i * 0.1 }}
-            className="group"
-          >
-            <div className="rounded-xl relative overflow-hidden cursor-pointer hover-target aspect-[4/5]">
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                style={{ backgroundImage: `url(${item.image})` }}
+      {/* 3D Carousel */}
+      <div
+        className="relative flex items-center justify-center"
+        style={{ height: '80vh', perspective: '1000px' }}
+      >
+        <style>{`
+          @keyframes galleryRotate {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
+          }
+          .gallery-carousel {
+            transform-style: preserve-3d;
+            animation: galleryRotate 20s infinite linear;
+          }
+          .gallery-carousel:hover {
+            animation-play-state: paused;
+          }
+        `}</style>
+
+        <div className="gallery-carousel relative w-0 h-0">
+          {items.map((item, i) => (
+            <figure
+              key={item.id}
+              className="absolute overflow-hidden border-4 border-black"
+              style={{
+                width: 220,
+                height: 160,
+                left: -110,
+                top: -80,
+                transform: `rotateY(${i * ANGLE}deg) translateZ(${RADIUS}px)`,
+              }}
+            >
+              <img
+                src={item.image}
+                alt={item.label}
+                className="w-full h-full object-cover cursor-pointer"
+                style={{
+                  filter: 'grayscale(1)',
+                  transition: 'all 0.5s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.filter = 'grayscale(0)'
+                  e.currentTarget.style.transform = 'scale(1.2)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.filter = 'grayscale(1)'
+                  e.currentTarget.style.transform = 'scale(1)'
+                }}
               />
-              <div
-                className="absolute inset-0"
-                style={{ background: `linear-gradient(to bottom, transparent 60%, ${item.color})`, mixBlendMode: 'multiply' }}
-              />
-              <div className="absolute bottom-8 left-8 z-10">
-                <span className="text-xs font-mono block mb-2" style={{ color: item.color }}>
-                  0{item.id}
-                </span>
-                <h3
-                  className="text-2xl font-semibold text-[#f5f5f5] m-0"
-                  style={{ fontFamily: 'var(--font-heading)' }}
-                >
-                  {item.label}
-                </h3>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+              <figcaption
+                className="absolute bottom-0 left-0 right-0 p-2 text-center text-white text-xs opacity-0 hover:opacity-100 transition-opacity duration-300"
+                style={{
+                  background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                  fontFamily: 'var(--font-ui)',
+                }}
+              >
+                {item.label}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
       </div>
     </section>
   )

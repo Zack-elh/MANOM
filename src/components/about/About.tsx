@@ -1,74 +1,90 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
+
+const stats = [
+  { number: '15+', label: 'Years Experience' },
+  { number: '50k+', label: 'Happy Clients' },
+  { number: '4.9', label: 'Star Rating' },
+];
 
 export const About: React.FC = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.from('.about-stat', {
+        textContent: 0,
+        duration: 2,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: 'top 70%',
+        },
+        stagger: 0.2,
+      });
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <section id="about" className="section-padding bg-white">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-          {/* Image Side */}
+    <section id="about" ref={sectionRef} className="bg-white" style={{ paddingTop: 'var(--spacing-section)', paddingBottom: 'var(--spacing-section)' }}>
+      <div className="max-w-[1200px] mx-auto px-6 md:px-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           <div className="relative">
-            <div className="aspect-[4/5] rounded-2xl overflow-hidden">
+            <div className="aspect-[4/5] overflow-hidden">
               <img
                 src="/images/about.jpg"
-                alt="The Barber House Interior"
+                alt="MANOM Interior"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="absolute -bottom-4 -right-4 md:-bottom-6 md:-right-6 w-32 h-32 md:w-48 md:h-48 border border-[#d4af37]/20 rounded-2xl" />
-            <div className="absolute -top-4 -left-4 md:-top-6 md:-left-6 w-24 h-24 md:w-32 md:h-32 bg-[#3c6057]/10 rounded-2xl" />
           </div>
 
-          {/* Content Side */}
           <div>
-            <span className="label-tag text-[#3c6057] tracking-[0.3em] mb-4 md:mb-6 block">Our Story</span>
+            <span className="section-label">Our Story</span>
             <h2
-              className="text-3xl md:text-5xl lg:text-6xl text-[#0b0b0b] mb-6 md:mb-8 leading-tight"
+              className="text-3xl md:text-5xl lg:text-[3.5rem] text-black mb-8 leading-[1.1]"
               style={{ fontFamily: 'var(--font-heading)' }}
             >
               Crafted With
               <br />
-              <span className="italic text-gradient-verdigris">Passion</span>
+              Precision
             </h2>
-            <div className="space-y-5 md:space-y-6 text-[#666666]">
-              <p className="text-base md:text-lg leading-relaxed">
-                Founded on the belief that grooming is an art form, The Barber House
+            <div className="space-y-5 text-text-secondary">
+              <p className="text-base leading-[1.7]" style={{ fontFamily: 'var(--font-ui)' }}>
+                Founded on the belief that grooming is an art form, MANOM
                 brings together master barbers who share a dedication to perfection.
               </p>
-              <p className="text-base md:text-lg leading-relaxed">
+              <p className="text-base leading-[1.7]" style={{ fontFamily: 'var(--font-ui)' }}>
                 Every detail matters — from the angle of the blade to the warmth of
-                the towel. We don't just cut hair; we craft experiences that leave
+                the towel. We don&apos;t just cut hair; we craft experiences that leave
                 you feeling confident and refined.
               </p>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 md:gap-8 mt-10 md:mt-12 pt-10 md:pt-12 border-t border-[#0b0b0b]/10">
-              <div>
-                <div className="text-2xl md:text-3xl text-[#3c6057] font-bold mb-1 md:mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
-                  15+
+            <div className="grid grid-cols-3 gap-8 mt-12 pt-12 border-t border-black/[0.08]">
+              {stats.map((stat) => (
+                <div key={stat.label}>
+                  <div
+                    className="text-2xl md:text-3xl text-verdigris font-bold mb-2"
+                    style={{ fontFamily: 'var(--font-heading)' }}
+                  >
+                    {stat.number}
+                  </div>
+                  <div
+                    className="text-[10px] md:text-xs text-text-tertiary uppercase tracking-wider"
+                    style={{ fontFamily: 'var(--font-ui)' }}
+                  >
+                    {stat.label}
+                  </div>
                 </div>
-                <div className="text-[10px] md:text-sm text-[#666666] uppercase tracking-wider" style={{ fontFamily: 'var(--font-ui)' }}>
-                  Years Experience
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl md:text-3xl text-[#3c6057] font-bold mb-1 md:mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
-                  50k+
-                </div>
-                <div className="text-[10px] md:text-sm text-[#666666] uppercase tracking-wider" style={{ fontFamily: 'var(--font-ui)' }}>
-                  Happy Clients
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl md:text-3xl text-[#3c6057] font-bold mb-1 md:mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
-                  4.9
-                </div>
-                <div className="text-[10px] md:text-sm text-[#666666] uppercase tracking-wider" style={{ fontFamily: 'var(--font-ui)' }}>
-                  Star Rating
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

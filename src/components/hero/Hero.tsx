@@ -13,17 +13,8 @@ export const Hero: React.FC = () => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
-      tl.from(titleRef.current, {
-        y: 60,
-        opacity: 0,
-        duration: 1.4,
-        delay: 2.8,
-      })
-      .from(ctaRef.current, {
-        y: 20,
-        opacity: 0,
-        duration: 0.8,
-      }, '-=0.4');
+      tl.from(titleRef.current, { y: 40, opacity: 0, duration: 1.0, delay: 2.2 })
+        .from(ctaRef.current, { y: 20, opacity: 0, duration: 0.6 }, '-=0.4');
     }, heroRef);
 
     return () => ctx.revert();
@@ -32,45 +23,49 @@ export const Hero: React.FC = () => {
   return (
     <section
       ref={heroRef}
-      className="relative w-full flex flex-col items-center justify-center overflow-hidden bg-[#b0b0b0]"
+      className="relative h-screen w-full flex flex-col items-center justify-end pb-24 md:pb-32 overflow-hidden"
     >
-      {/* Background Image */}
       <div className="absolute inset-0 w-full h-full">
         <img
           src="/images/hero.jpg"
           alt="MANOM"
-          className="w-full h-full object-contain"
+          className="w-full h-full object-cover object-top"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
       </div>
 
-      {/* MANOM */}
-      <h1
-        ref={titleRef}
-        className="relative z-10 select-none w-full text-center px-4"
-        style={{
-          fontFamily: "'Sora', sans-serif",
-          fontSize: 'clamp(3rem, 16vw, 14rem)',
-          fontWeight: 700,
-          lineHeight: 0.85,
-          color: '#ffffff',
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-          filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))',
-        }}
-      >
-        MANOM
-      </h1>
+      <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
+        <h1
+          ref={titleRef}
+          className="text-white mb-10"
+          style={{
+            fontFamily: "'Satoshi', sans-serif",
+            fontWeight: 900,
+            fontSize: 'clamp(3rem, 12vw, 8rem)',
+            lineHeight: 1.0,
+            letterSpacing: '0.35em',
+            color: '#ffffff',
+          }}
+        >
+          MANOM
+        </h1>
 
-      {/* CTA */}
-      <div ref={ctaRef} className="relative z-10 mt-8 md:mt-12">
-        <Link href="/booking">
-          <button
-            className="px-8 md:px-12 py-4 md:py-5 text-[10px] md:text-xs font-semibold tracking-[0.15em] uppercase bg-[#0b0b0b] text-white hover:bg-[#2c2c2c] transition-all duration-300"
-            style={{ fontFamily: 'var(--font-ui)' }}
-          >
-            Book Now
-          </button>
-        </Link>
+        <div ref={ctaRef}>
+          <Link href="/auth">
+            <button
+              className="px-10 py-4 text-[11px] font-semibold tracking-[0.1em] uppercase bg-white text-black hover:bg-verdigris hover:text-white transition-all duration-300"
+              style={{ fontFamily: 'var(--font-ui)' }}
+            >
+              Book Now
+            </button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
+          <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
+        </svg>
       </div>
     </section>
   );

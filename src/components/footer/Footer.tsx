@@ -4,31 +4,32 @@ import React from 'react';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-white border-t border-[#0b0b0b]/10">
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-10 md:py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 mb-10 md:mb-12">
-          {/* Brand */}
-          <div className="md:col-span-1">
-            <div className="flex items-center gap-3 mb-6">
-              <img src="/images/logoo.png" alt="MANOM" className="h-10 w-auto" />
-            </div>
-            <p className="text-[#666] text-sm leading-relaxed">
+    <footer className="bg-surface-dark text-white">
+      <div className="max-w-[1200px] mx-auto px-6 md:px-10 py-16 md:py-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-16 mb-16">
+          <div>
+            <span
+              className="text-3xl text-white block mb-4"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              MANOM
+            </span>
+            <p className="text-white/40 text-sm leading-relaxed max-w-xs">
               Where traditional craftsmanship meets modern luxury.
             </p>
           </div>
 
-          {/* Quick Links */}
           <div>
-            <h4 className="text-[#0b0b0b] font-semibold mb-4 text-sm uppercase tracking-wider" style={{ fontFamily: 'var(--font-ui)' }}>
-              Quick Links
+            <h4 className="text-white/60 text-[11px] font-semibold tracking-[0.14em] uppercase mb-6" style={{ fontFamily: 'var(--font-ui)' }}>
+              Navigate
             </h4>
             <ul className="space-y-3">
-              {['Team', 'Gallery', 'About'].map((link) => (
+              {['About', 'Services', 'Team', 'Gallery'].map((link) => (
                 <li key={link}>
                   <a
                     href={`#${link.toLowerCase()}`}
-                    className="text-[#666] hover:text-[#3c6057] transition-colors text-sm"
-                    style={{ fontFamily: 'var(--font-body)' }}
+                    className="text-white/40 hover:text-white transition-colors text-sm"
+                    style={{ fontFamily: 'var(--font-ui)' }}
                   >
                     {link}
                   </a>
@@ -37,48 +38,45 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Hours */}
           <div>
-            <h4 className="text-[#0b0b0b] font-semibold mb-4 text-sm uppercase tracking-wider" style={{ fontFamily: 'var(--font-ui)' }}>
-              Hours
+            <h4 className="text-white/60 text-[11px] font-semibold tracking-[0.14em] uppercase mb-6" style={{ fontFamily: 'var(--font-ui)' }}>
+              Visit Us
             </h4>
-            <ul className="space-y-3 text-sm text-[#666]" style={{ fontFamily: 'var(--font-body)' }}>
-              <li>Mon - Fri: 9:00 AM - 8:00 PM</li>
-              <li>Saturday: 9:00 AM - 6:00 PM</li>
-              <li>Sunday: 10:00 AM - 4:00 PM</li>
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="text-[#0b0b0b] font-semibold mb-4 text-sm uppercase tracking-wider" style={{ fontFamily: 'var(--font-ui)' }}>
-              Contact
-            </h4>
-            <ul className="space-y-3 text-sm text-[#666]" style={{ fontFamily: 'var(--font-body)' }}>
-              <li>123 Luxury Lane</li>
-              <li>New York, NY 10001</li>
+            <ul className="space-y-3 text-sm text-white/40" style={{ fontFamily: 'var(--font-ui)' }}>
+              <li>57100 Manom</li>
+              <li>France</li>
               <li className="pt-2">
-                <a href="tel:+1234567890" className="hover:text-[#3c6057] transition-colors">
-                  +1 (234) 567-890
+                <a href="tel:+33380123456" className="hover:text-white transition-colors">
+                  +33 3 80 12 34 56
                 </a>
               </li>
               <li>
-                <a href="mailto:hello@manom.com" className="hover:text-[#3c6057] transition-colors">
-                  hello@manom.com
+                <a href="mailto:Manom@Manom.com" className="hover:text-white transition-colors">
+                  Manom@Manom.com
                 </a>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-[#0b0b0b]/10 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-[#666] text-xs" style={{ fontFamily: 'var(--font-ui)' }}>
+        <div className="pt-8 border-t border-white/[0.06] flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-white/30 text-xs" style={{ fontFamily: 'var(--font-ui)' }}>
             &copy; {new Date().getFullYear()} MANOM. All rights reserved.
           </p>
-          <p className="text-[#999] text-xs" style={{ fontFamily: 'var(--font-ui)' }}>
-            Powered by Zackon
-          </p>
+          <div className="flex items-center gap-6">
+            <a href="#" className="text-white/30 hover:text-white transition-colors" aria-label="Instagram">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" />
+                <circle cx="12" cy="12" r="5" />
+                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+              </svg>
+            </a>
+            <a href="#" className="text-white/30 hover:text-white transition-colors" aria-label="WhatsApp">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              </svg>
+            </a>
+          </div>
         </div>
       </div>
     </footer>
