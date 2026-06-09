@@ -9,6 +9,7 @@ export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [name, setName] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -24,6 +25,7 @@ export default function AuthPage() {
     setMode(mode === 'login' ? 'signup' : 'login')
     setEmail('')
     setPassword('')
+    setConfirmPassword('')
     setName('')
   }
 
@@ -37,7 +39,7 @@ export default function AuthPage() {
           Back to home
         </Link>
 
-        <div className="relative overflow-hidden" style={{ minHeight: mode === 'signup' ? '520px' : '420px' }}>
+        <div className="relative overflow-hidden" style={{ minHeight: mode === 'signup' ? '580px' : '420px' }}>
           {/* Sign In Form */}
           <div
             className="w-full transition-all duration-500 ease-in-out"
@@ -85,7 +87,13 @@ export default function AuthPage() {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary w-full mt-6">
+              <div className="text-right pt-2">
+                <button type="button" className="text-xs text-verdigris hover:text-black transition-colors" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Forgot Password?
+                </button>
+              </div>
+
+              <button type="submit" className="btn btn-primary w-full mt-2">
                 Sign In & Book
               </button>
             </form>
@@ -114,6 +122,32 @@ export default function AuthPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
+                  style={{ fontFamily: 'var(--font-ui)' }}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
+                  style={{ fontFamily: 'var(--font-ui)' }}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
                   Password
                 </label>
                 <input
@@ -125,13 +159,20 @@ export default function AuthPage() {
                 />
               </div>
 
-              <div className="text-right">
-                <button type="button" className="text-xs text-verdigris hover:text-black transition-colors" style={{ fontFamily: 'var(--font-ui)' }}>
-                  Forgot Password?
-                </button>
+              <div>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors"
+                  style={{ fontFamily: 'var(--font-ui)' }}
+                />
               </div>
 
-              <button type="submit" className="btn btn-primary w-full mt-2">
+              <button type="submit" className="btn btn-primary w-full mt-4">
                 Create Account & Book
               </button>
             </form>
