@@ -1,5 +1,7 @@
 'use client'
 
+import { useLanguage } from '@/i18n/context'
+
 const items = [
   { id: 1, label: 'Precision Cut', image: '/images/gallery/8663131e764264cfe2b4a28951b51464.jpg' },
   { id: 2, label: 'Beard Sculpt', image: '/images/gallery/e34e8e86fcb6b5e1fbeef4bbb6759a3f.jpg' },
@@ -13,6 +15,7 @@ const ANGLE = 360 / ITEM_COUNT
 const RADIUS = 280
 
 export const Gallery: React.FC = () => {
+  const { t } = useLanguage();
   return (
     <section
       id="gallery"
@@ -21,12 +24,12 @@ export const Gallery: React.FC = () => {
       {/* Heading */}
       <div className="max-w-[1200px] mx-auto px-6 md:px-10" style={{ paddingTop: 'var(--spacing-section)' }}>
         <div className="text-center mb-16">
-          <span className="section-label">Our Work</span>
+          <span className="section-label">{t('gallery.label')}</span>
           <h2
             className="text-3xl md:text-5xl lg:text-[3.5rem] text-black"
             style={{ fontFamily: 'var(--font-heading)' }}
           >
-            Gallery
+            {t('gallery.title')}
           </h2>
         </div>
       </div>

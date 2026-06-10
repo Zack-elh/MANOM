@@ -3,11 +3,13 @@
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import gsap from 'gsap';
+import { useLanguage } from '@/i18n/context';
 
 export const Hero: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -56,7 +58,7 @@ export const Hero: React.FC = () => {
               className="px-10 py-4 text-[11px] font-semibold tracking-[0.1em] uppercase bg-white text-black hover:bg-verdigris hover:text-white transition-all duration-300"
               style={{ fontFamily: 'var(--font-ui)' }}
             >
-              Book Now
+              {t('hero.cta')}
             </button>
           </Link>
         </div>

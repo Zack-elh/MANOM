@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { LanguageProvider } from "@/i18n/context";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 
 export const metadata: Metadata = {
   title: "MANOM | Premium Grooming Experience",
@@ -14,7 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        {children}
+        <LanguageProvider>
+          <CurrencyProvider>
+            {children}
+          </CurrencyProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

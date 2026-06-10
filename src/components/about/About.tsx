@@ -3,17 +3,19 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useLanguage } from '@/i18n/context';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const stats = [
-  { number: '15+', label: 'Years Experience' },
-  { number: '50k+', label: 'Happy Clients' },
-  { number: '4.9', label: 'Star Rating' },
-];
-
 export const About: React.FC = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
+
+  const stats = [
+    { number: '15+', label: t('about.stat1Label') },
+    { number: '50k+', label: t('about.stat2Label') },
+    { number: '3', label: t('about.stat3Label') },
+  ];
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -38,49 +40,28 @@ export const About: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           <div className="relative">
             <div className="aspect-[4/5] overflow-hidden">
-              <img
-                src="/images/about.jpg"
-                alt="MANOM Interior"
-                className="w-full h-full object-cover"
-              />
+              <img src="/images/about.jpg" alt="MANOM Interior" className="w-full h-full object-cover" />
             </div>
           </div>
 
           <div>
-            <span className="section-label">Our Story</span>
-            <h2
-              className="text-3xl md:text-5xl lg:text-[3.5rem] text-black mb-8 leading-[1.1]"
-              style={{ fontFamily: 'var(--font-heading)' }}
-            >
-              Crafted With
-              <br />
-              Precision
+            <span className="section-label">{t('about.label')}</span>
+            <h2 className="text-3xl md:text-5xl lg:text-[3.5rem] text-black mb-8 leading-[1.1]" style={{ fontFamily: 'var(--font-heading)' }}>
+              {t('about.title')}
             </h2>
             <div className="space-y-5 text-text-secondary">
               <p className="text-base leading-[1.7]" style={{ fontFamily: 'var(--font-ui)' }}>
-                Founded on the belief that grooming is an art form, MANOM
-                brings together master barbers who share a dedication to perfection.
-              </p>
-              <p className="text-base leading-[1.7]" style={{ fontFamily: 'var(--font-ui)' }}>
-                Every detail matters — from the angle of the blade to the warmth of
-                the towel. We don&apos;t just cut hair; we craft experiences that leave
-                you feeling confident and refined.
+                {t('about.description')}
               </p>
             </div>
 
             <div className="grid grid-cols-3 gap-8 mt-12 pt-12 border-t border-black/[0.08]">
               {stats.map((stat) => (
                 <div key={stat.label}>
-                  <div
-                    className="text-2xl md:text-3xl text-verdigris font-bold mb-2"
-                    style={{ fontFamily: 'var(--font-heading)' }}
-                  >
+                  <div className="text-2xl md:text-3xl text-verdigris font-bold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
                     {stat.number}
                   </div>
-                  <div
-                    className="text-[10px] md:text-xs text-text-tertiary uppercase tracking-wider"
-                    style={{ fontFamily: 'var(--font-ui)' }}
-                  >
+                  <div className="text-[10px] md:text-xs text-text-tertiary uppercase tracking-wider" style={{ fontFamily: 'var(--font-ui)' }}>
                     {stat.label}
                   </div>
                 </div>

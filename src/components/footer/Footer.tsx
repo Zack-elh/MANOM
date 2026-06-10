@@ -1,37 +1,38 @@
 'use client';
 
 import React from 'react';
+import { useLanguage } from '@/i18n/context';
 
 export const Footer: React.FC = () => {
+  const { t } = useLanguage();
+
+  const navLinks = [
+    { label: t('nav.about'), href: '#about' },
+    { label: t('nav.services'), href: '#services' },
+    { label: t('nav.team'), href: '#team' },
+    { label: t('nav.gallery'), href: '#gallery' },
+  ];
+
   return (
     <footer className="bg-surface-dark text-white">
       <div className="max-w-[1200px] mx-auto px-6 md:px-10 py-16 md:py-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-16 mb-16">
           <div>
-            <span
-              className="text-3xl text-white block mb-4"
-              style={{ fontFamily: 'var(--font-heading)' }}
-            >
-              MANOM
-            </span>
+            <span className="text-3xl text-white block mb-4" style={{ fontFamily: 'var(--font-heading)' }}>MANOM</span>
             <p className="text-white/40 text-sm leading-relaxed max-w-xs">
-              Where traditional craftsmanship meets modern luxury.
+              {t('about.description').substring(0, 80)}...
             </p>
           </div>
 
           <div>
             <h4 className="text-white/60 text-[11px] font-semibold tracking-[0.14em] uppercase mb-6" style={{ fontFamily: 'var(--font-ui)' }}>
-              Navigate
+              {t('nav.home')}
             </h4>
             <ul className="space-y-3">
-              {['About', 'Services', 'Team', 'Gallery'].map((link) => (
-                <li key={link}>
-                  <a
-                    href={`#${link.toLowerCase()}`}
-                    className="text-white/40 hover:text-white transition-colors text-sm"
-                    style={{ fontFamily: 'var(--font-ui)' }}
-                  >
-                    {link}
+              {navLinks.map((link) => (
+                <li key={link.href}>
+                  <a href={link.href} className="text-white/40 hover:text-white transition-colors text-sm" style={{ fontFamily: 'var(--font-ui)' }}>
+                    {link.label}
                   </a>
                 </li>
               ))}
@@ -40,20 +41,15 @@ export const Footer: React.FC = () => {
 
           <div>
             <h4 className="text-white/60 text-[11px] font-semibold tracking-[0.14em] uppercase mb-6" style={{ fontFamily: 'var(--font-ui)' }}>
-              Visit Us
+              {t('contact.label')}
             </h4>
             <ul className="space-y-3 text-sm text-white/40" style={{ fontFamily: 'var(--font-ui)' }}>
-              <li>57100 Manom</li>
-              <li>France</li>
+              <li>{t('footer.location')}</li>
               <li className="pt-2">
-                <a href="tel:+33380123456" className="hover:text-white transition-colors">
-                  +33 3 80 12 34 56
-                </a>
+                <a href="tel:+33380123456" className="hover:text-white transition-colors">{t('footer.phone')}</a>
               </li>
               <li>
-                <a href="mailto:Manom@Manom.com" className="hover:text-white transition-colors">
-                  Manom@Manom.com
-                </a>
+                <a href="mailto:Manom@Manom.com" className="hover:text-white transition-colors">{t('footer.email')}</a>
               </li>
             </ul>
           </div>
@@ -61,14 +57,12 @@ export const Footer: React.FC = () => {
 
         <div className="pt-8 border-t border-white/[0.06] flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-white/30 text-xs" style={{ fontFamily: 'var(--font-ui)' }}>
-            &copy; {new Date().getFullYear()} MANOM. All rights reserved.
+            &copy; {new Date().getFullYear()} MANOM. {t('footer.rights')}
           </p>
           <div className="flex items-center gap-6">
             <a href="#" className="text-white/30 hover:text-white transition-colors" aria-label="Instagram">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="5" />
-                <circle cx="12" cy="12" r="5" />
-                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+                <rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="5" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
               </svg>
             </a>
             <a href="#" className="text-white/30 hover:text-white transition-colors" aria-label="WhatsApp">
