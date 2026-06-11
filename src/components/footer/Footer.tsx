@@ -20,7 +20,7 @@ export const Footer: React.FC = () => {
           <div>
             <span className="text-3xl text-white block mb-4" style={{ fontFamily: 'var(--font-heading)' }}>MANOM</span>
             <p className="text-white/40 text-sm leading-relaxed max-w-xs">
-              {t('about.description').substring(0, 80)}...
+              {t('about.description').substring(0, 80).replace(/\s+\S*$/, '')}...
             </p>
           </div>
 

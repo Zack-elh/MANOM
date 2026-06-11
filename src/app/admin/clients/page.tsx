@@ -9,6 +9,7 @@ interface Client { id: number; name: string; email: string; phone: string | null
 export default function AdminClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const { t, language } = useLanguage();
 
@@ -17,7 +18,7 @@ export default function AdminClientsPage() {
     authFetch(`/api/admin/clients.php?search=${search}`)
       .then((r) => r.json())
       .then((data) => setClients(data.clients || []))
-      .catch(() => {})
+      .catch(() => setError('Failed to load clients'))
       .finally(() => setLoading(false));
   }, [search]);
 
@@ -33,6 +34,8 @@ export default function AdminClientsPage() {
         </div>
         <span className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>{clients.length} {t('admin.clientsRegistered').split(' ').slice(1).join(' ')}</span>
       </div>
+
+      {error && <div className="mb-6 py-3 px-4 bg-red-50 border border-red-200 text-red-700 text-xs" style={{ fontFamily: 'var(--font-ui)' }}>{error}<button onClick={() => setError('')} className="ml-4 font-bold">&times;</button></div>}
 
       <div className="mb-6">
         <input type="text" placeholder={t('admin.searchClients')} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-md px-4 py-2.5 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }} />

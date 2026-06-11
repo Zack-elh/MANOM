@@ -7,6 +7,9 @@
 // Environment detection
 define('ENV', getenv('MANOM_ENV') ?: 'development');
 
+// Suppress PHP error output to prevent HTML corrupting JSON responses
+@ini_set('display_errors', '0');
+
 // Database credentials (use environment variables in production)
 define('DB_HOST', getenv('MANOM_DB_HOST') ?: 'localhost');
 define('DB_NAME', getenv('MANOM_DB_NAME') ?: 'manom_barbershop');
@@ -26,7 +29,7 @@ define('RATE_LIMIT_WINDOW', 900); // 15 minutes in seconds
 define('ALLOWED_ORIGIN', ENV === 'development' ? 'http://localhost:3000' : 'https://yourdomain.com');
 
 // Booking rules
-define('CANCEL_WINDOW_HOURS', 24); // hours before appointment to allow cancel
+define('CANCEL_WINDOW_HOURS', 0); // hours before appointment to allow cancel (0 = cancel anytime until appointment)
 define('BOOKING_REF_PREFIX', 'MNM');
 
 /**

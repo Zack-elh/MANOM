@@ -30,14 +30,27 @@ $stmt = $db->prepare("
 $stmt->execute([$today]);
 $todayBookings = $stmt->fetch()['count'];
 
-// Today's revenue
+// Today's revenue (handle multi-service notes)
+$todayRevenue = 0;
 $stmt = $db->prepare("
-    SELECT COALESCE(SUM(s.price), 0) as total FROM bookings b
+    SELECT b.notes, s.price AS primary_price FROM bookings b
     JOIN services s ON b.service_id = s.id
     WHERE b.booking_date = ? AND b.status IN ('confirmed', 'completed')
 ");
 $stmt->execute([$today]);
-$todayRevenue = $stmt->fetch()['total'];
+while ($row = $stmt->fetch()) {
+    $todayRevenue += (float)$row['primary_price'];
+    $multiNote = json_decode($row['notes'], true);
+    if (isset($multiNote['__multi__']) && is_array($multiNote['__multi__'])) {
+        $extraIds = array_slice($multiNote['__multi__'], 1);
+        if (!empty($extraIds)) {
+            $placeholders = implode(',', array_fill(0, count($extraIds), '?'));
+            $s = $db->prepare("SELECT COALESCE(SUM(price), 0) FROM services WHERE id IN ($placeholders)");
+            $s->execute($extraIds);
+            $todayRevenue += (float)$s->fetchColumn();
+        }
+    }
+}
 
 // Pending bookings
 $stmt = $db->query("SELECT COUNT(*) as count FROM bookings WHERE status = 'pending'");
@@ -47,23 +60,36 @@ $pendingBookings = $stmt->fetch()['count'];
 $stmt = $db->query("SELECT COUNT(*) as count FROM users WHERE role = 'client'");
 $totalClients = $stmt->fetch()['count'];
 
-// Total bookings this month
+// Total completed bookings this month (past bookings only)
 $monthStart = date('Y-m-01');
 $stmt = $db->prepare("
     SELECT COUNT(*) as count FROM bookings 
-    WHERE booking_date >= ? AND status IN ('confirmed', 'completed')
+    WHERE booking_date >= ? AND status = 'completed'
 ");
 $stmt->execute([$monthStart]);
 $monthBookings = $stmt->fetch()['count'];
 
-// Monthly revenue
+// Monthly revenue from completed bookings (handle multi-service notes)
+$monthRevenue = 0;
 $stmt = $db->prepare("
-    SELECT COALESCE(SUM(s.price), 0) as total FROM bookings b
+    SELECT b.notes, s.price AS primary_price FROM bookings b
     JOIN services s ON b.service_id = s.id
-    WHERE b.booking_date >= ? AND b.status IN ('confirmed', 'completed')
+    WHERE b.booking_date >= ? AND b.status = 'completed'
 ");
 $stmt->execute([$monthStart]);
-$monthRevenue = $stmt->fetch()['total'];
+while ($row = $stmt->fetch()) {
+    $monthRevenue += (float)$row['primary_price'];
+    $multiNote = json_decode($row['notes'], true);
+    if (isset($multiNote['__multi__']) && is_array($multiNote['__multi__'])) {
+        $extraIds = array_slice($multiNote['__multi__'], 1);
+        if (!empty($extraIds)) {
+            $placeholders = implode(',', array_fill(0, count($extraIds), '?'));
+            $s = $db->prepare("SELECT COALESCE(SUM(price), 0) FROM services WHERE id IN ($placeholders)");
+            $s->execute($extraIds);
+            $monthRevenue += (float)$s->fetchColumn();
+        }
+    }
+}
 
 // Upcoming bookings (next 7 days)
 $weekEnd = date('Y-m-d', strtotime('+7 days'));

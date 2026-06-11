@@ -18,6 +18,7 @@ interface Stats {
 export default function AdminPage() {
   const [stats, setStats] = useState<Stats>({ today: { bookings: 0, revenue: 0 }, month: { bookings: 0, revenue: 0 }, pending_bookings: 0, total_clients: 0, upcoming: [], recent: [] });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
 
@@ -25,7 +26,7 @@ export default function AdminPage() {
     authFetch('/api/admin/stats.php')
       .then((res) => res.json())
       .then((data) => { if (data.today && data.month) setStats(data); })
-      .catch(() => {})
+      .catch(() => setError('Failed to load stats'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -38,6 +39,8 @@ export default function AdminPage() {
     <div>
       <span className="section-label">{t('admin.adminDashboard')}</span>
       <h1 className="text-2xl md:text-3xl text-black mb-8" style={{ fontFamily: 'var(--font-heading)' }}>{t('admin.overview')}</h1>
+
+      {error && <div className="mb-6 py-3 px-4 bg-red-50 border border-red-200 text-red-700 text-xs" style={{ fontFamily: 'var(--font-ui)' }}>{error}</div>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         <div className="p-5 bg-surface-alt border border-black/[0.04]">

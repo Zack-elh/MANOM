@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { LanguageProvider } from "@/i18n/context";
 import { CurrencyProvider } from "@/context/CurrencyContext";
+import CookieConsent from "@/components/CookieConsent";
 
 export const metadata: Metadata = {
   title: "MANOM | Premium Grooming Experience",
@@ -19,6 +20,7 @@ export default function RootLayout({
         <LanguageProvider>
           <CurrencyProvider>
             {children}
+            <CookieConsent />
           </CurrencyProvider>
         </LanguageProvider>
       </body>

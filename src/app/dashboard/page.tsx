@@ -48,7 +48,7 @@ export default function DashboardPage() {
           setUpcoming(upcomingBookings);
         }
       })
-      .catch(() => {})
+      .catch(() => console.error('Failed to load upcoming bookings'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -126,19 +126,12 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {upcoming.map((booking) => (
               <div key={booking.id} className="flex items-center justify-between p-4 bg-surface-alt border border-black/[0.04] hover:border-black/[0.12] transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-verdigris/10 flex items-center justify-center">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-verdigris">
-                      <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                  </div>
                   <div>
                     <p className="text-sm font-medium text-black" style={{ fontFamily: 'var(--font-ui)' }}>{booking.service_title}</p>
                     <p className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>
-                      {booking.barber_name} · {formatDate(booking.booking_date)} · {formatTime(booking.booking_time)}
+                      <span className="inline-flex w-5 h-5 rounded-full bg-verdigris/10 items-center justify-center text-[10px] font-bold text-verdigris uppercase shrink-0">{booking.barber_name.charAt(0)}</span> {booking.barber_name} · {formatDate(booking.booking_date)} · {formatTime(booking.booking_time)}
                     </p>
                   </div>
-                </div>
                 <div className="text-right">
                   <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-1 ${booking.status === 'confirmed' ? 'bg-verdigris/10 text-verdigris' : 'bg-black/5 text-text-tertiary'}`} style={{ fontFamily: 'var(--font-ui)' }}>
                     {booking.status}

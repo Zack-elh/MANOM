@@ -30,12 +30,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $description = isset($input['description']) ? sanitize_input($input['description']) : null;
     $duration = (int)$input['duration'];
     $price = (float)$input['price'];
+    $image = isset($input['image']) ? sanitize_input($input['image']) : null;
 
     if ($duration < 5 || $duration > 480) json_response(['error' => 'Duration must be 5-480 minutes'], 400);
     if ($price < 0) json_response(['error' => 'Price cannot be negative'], 400);
 
-    $stmt = $db->prepare("INSERT INTO services (title, description, duration, price) VALUES (?, ?, ?, ?)");
-    $stmt->execute([$title, $description, $duration, $price]);
+    $stmt = $db->prepare("INSERT INTO services (title, description, duration, price, image) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$title, $description, $duration, $price, $image]);
 
     json_response(['message' => 'Service created', 'id' => (int)$db->lastInsertId()], 201);
 
@@ -52,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (isset($input['description'])) { $fields[] = 'description = ?'; $params[] = sanitize_input($input['description']); }
     if (isset($input['duration'])) { $fields[] = 'duration = ?'; $params[] = (int)$input['duration']; }
     if (isset($input['price'])) { $fields[] = 'price = ?'; $params[] = (float)$input['price']; }
+    if (isset($input['image'])) { $fields[] = 'image = ?'; $params[] = sanitize_input($input['image']); }
     if (isset($input['active'])) { $fields[] = 'active = ?'; $params[] = (int)$input['active']; }
 
     if (empty($fields)) json_response(['error' => 'No fields to update'], 400);

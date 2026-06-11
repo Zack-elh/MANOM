@@ -55,9 +55,25 @@ $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $bookings = $stmt->fetchAll();
 
-// Add can_cancel flag for each booking
+// Parse multi-service notes and add can_cancel flag
 $cancelWindow = CANCEL_WINDOW_HOURS;
 foreach ($bookings as &$booking) {
+    // Check for multi-service data in notes
+    $multiNote = json_decode($booking['notes'], true);
+    if (isset($multiNote['__multi__']) && is_array($multiNote['__multi__'])) {
+        $ids = $multiNote['__multi__'];
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt2 = $db->prepare("SELECT id, title, duration, price FROM services WHERE id IN ($placeholders)");
+        $stmt2->execute($ids);
+        $multiServices = $stmt2->fetchAll();
+        $names = array_column($multiServices, 'title');
+        $booking['service_title'] = implode(', ', $names);
+        $booking['multi_service_ids'] = $ids;
+        $booking['multi_services'] = $multiServices;
+        $booking['price'] = array_sum(array_column($multiServices, 'price'));
+        $booking['duration'] = array_sum(array_column($multiServices, 'duration'));
+    }
+
     $bookingDateTime = new DateTime($booking['booking_date'] . ' ' . $booking['booking_time']);
     $now = new DateTime();
     $hoursUntil = ($bookingDateTime->getTimestamp() - $now->getTimestamp()) / 3600;
@@ -68,9 +84,8 @@ foreach ($bookings as &$booking) {
     );
     $booking['hours_until'] = round($hoursUntil, 1);
 
-    // Ensure ref_code is always present
     if (empty($booking['ref_code'])) {
-        $booking['ref_code'] = 'MNM-' . str_pad($booking['id'], 6, '0', STR_PAD_LEFT);
+        $booking['ref_code'] = 'MNM-' . str_pad($booking['id'], 6, '0', STR_LEFT);
     }
 }
 unset($booking);

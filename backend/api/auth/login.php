@@ -57,12 +57,8 @@ $_SESSION['user_name'] = $user['name'];
 $_SESSION['user_role'] = $user['role'];
 $_SESSION['login_time'] = time();
 
-// Generate auth token for header-based auth (fallback for cookie issues)
-$token = base64_encode($user['id'] . ':' . $user['email'] . ':' . hash_hmac('sha256', $user['id'] . ':' . $user['email'], 'manom_dev_secret'));
-
 json_response([
     'message' => 'Login successful',
-    'token'   => $token,
     'user' => [
         'id'    => $user['id'],
         'name'  => $user['name'],

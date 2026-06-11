@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/i18n/context'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
 
 export default function AuthPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login')
   const [forgotStep, setForgotStep] = useState<1 | 2>(1)
   const [email, setEmail] = useState('')
@@ -64,7 +66,7 @@ export default function AuthPage() {
         return
       }
 
-      localStorage.setItem('manom_auth', JSON.stringify({ user: data.user, token: data.token }))
+      localStorage.setItem('manom_auth', JSON.stringify({ user: data.user }))
 
       if (data.user.role === 'admin') {
         router.push('/admin')
@@ -72,7 +74,7 @@ export default function AuthPage() {
         router.push('/dashboard')
       }
     } catch {
-      setError('Connection failed. Please try again.')
+      setError(t('auth.connectionFailed'))
       setLoading(false)
     }
   }
@@ -82,7 +84,7 @@ export default function AuthPage() {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('auth.passwordsDoNotMatch'))
       return
     }
 
@@ -118,7 +120,7 @@ export default function AuthPage() {
         router.push('/auth')
       }
     } catch {
-      setError('Connection failed. Please try again.')
+      setError(t('auth.connectionFailed'))
       setLoading(false)
     }
   }
@@ -139,14 +141,14 @@ export default function AuthPage() {
 
       if (data.token) {
         setResetToken(data.token)
-        setSuccessMsg('Reset token generated. Copy it below.')
+        setSuccessMsg(t('auth.tokenGenerated'))
         setForgotStep(2)
       } else {
-        setSuccessMsg(data.message || 'Check your email for reset instructions.')
+        setSuccessMsg(data.message || t('auth.checkEmail'))
         setForgotStep(2)
       }
     } catch {
-      setError('Connection failed. Please try again.')
+      setError(t('auth.connectionFailed'))
     } finally {
       setLoading(false)
     }
@@ -157,7 +159,7 @@ export default function AuthPage() {
     setError('')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('auth.passwordsDoNotMatch'))
       return
     }
 
@@ -178,7 +180,7 @@ export default function AuthPage() {
         return
       }
 
-      setSuccessMsg('Password reset successfully! Redirecting to sign in...')
+      setSuccessMsg(t('auth.resetSuccess'))
       setTimeout(() => {
         setMode('login')
         setForgotStep(1)
@@ -189,7 +191,7 @@ export default function AuthPage() {
         setSuccessMsg('')
       }, 2000)
     } catch {
-      setError('Connection failed. Please try again.')
+      setError(t('auth.connectionFailed'))
     } finally {
       setLoading(false)
     }
@@ -225,7 +227,7 @@ export default function AuthPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
-          Back to home
+          {t('common.backToHome')}
         </Link>
 
         <div className="relative">
@@ -238,12 +240,12 @@ export default function AuthPage() {
               pointerEvents: mode === 'login' ? 'auto' : 'none',
             }}
           >
-            <span className="section-label">Welcome Back</span>
+            <span className="section-label">{t('auth.welcomeBack')}</span>
             <h1 className="text-3xl md:text-5xl text-black mb-4 leading-[1.1]" style={{ fontFamily: 'var(--font-heading)' }}>
-              Sign In
+              {t('auth.signInTitle')}
             </h1>
             <p className="text-text-tertiary text-sm mb-8" style={{ fontFamily: 'var(--font-ui)' }}>
-              Enter your details to access booking
+              {t('auth.signInDesc')}
             </p>
 
             {error && mode === 'login' && (
@@ -252,11 +254,11 @@ export default function AuthPage() {
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>Email</label>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.email')}</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
               </div>
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>Password</label>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.password')}</label>
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full py-3 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-black transition-colors">
@@ -270,11 +272,11 @@ export default function AuthPage() {
               </div>
               <div className="text-right pt-2">
                 <button type="button" onClick={goToForgot} className="text-xs text-verdigris hover:text-black transition-colors" style={{ fontFamily: 'var(--font-ui)' }}>
-                  Forgot Password?
+                  {t('auth.forgotPassword')}
                 </button>
               </div>
               <button type="submit" disabled={loading} className="btn btn-primary w-full mt-3 disabled:opacity-50">
-                {loading ? 'Signing in...' : 'Sign In & Book'}
+                {loading ? t('auth.signingIn') : t('auth.signInCta')}
               </button>
             </form>
           </div>
@@ -288,12 +290,12 @@ export default function AuthPage() {
               pointerEvents: mode === 'signup' ? 'auto' : 'none',
             }}
           >
-            <span className="section-label">Create Account</span>
+            <span className="section-label">{t('auth.createAccount')}</span>
             <h1 className="text-3xl md:text-5xl text-black mb-4 leading-[1.1]" style={{ fontFamily: 'var(--font-heading)' }}>
-              Sign Up
+              {t('auth.signUpTitle')}
             </h1>
             <p className="text-text-tertiary text-sm mb-8" style={{ fontFamily: 'var(--font-ui)' }}>
-              Create an account to book your experience
+              {t('auth.signUpDesc')}
             </p>
 
             {error && mode === 'signup' && (
@@ -302,15 +304,15 @@ export default function AuthPage() {
 
             <form onSubmit={handleSignup} className="space-y-3">
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>Full Name</label>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.fullName')}</label>
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full py-2 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
               </div>
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>Email</label>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.email')}</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full py-2 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
               </div>
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>Password</label>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.password')}</label>
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full py-2 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-black transition-colors">
@@ -323,7 +325,7 @@ export default function AuthPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>Confirm Password</label>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.confirmPassword')}</label>
                 <div className="relative">
                   <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full py-2 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-black transition-colors">
@@ -336,13 +338,13 @@ export default function AuthPage() {
                 </div>
               </div>
               <button type="submit" disabled={loading} className="btn btn-primary w-full mt-2 disabled:opacity-50">
-                {loading ? 'Creating account...' : 'Create Account & Book'}
+                {loading ? t('auth.creating') : t('auth.signUpCta')}
               </button>
             </form>
 
             <p className="text-center text-sm text-text-tertiary mt-1" style={{ fontFamily: 'var(--font-ui)' }}>
-              Already have an account?{' '}
-              <button onClick={toggleMode} className="text-black font-medium hover:text-verdigris transition-colors">Sign In</button>
+              {t('auth.hasAccount')}{' '}
+              <button onClick={toggleMode} className="text-black font-medium hover:text-verdigris transition-colors">{t('auth.signIn')}</button>
             </p>
           </div>
 
@@ -355,14 +357,12 @@ export default function AuthPage() {
               pointerEvents: mode === 'forgot' ? 'auto' : 'none',
             }}
           >
-            <span className="section-label">Reset Password</span>
+            <span className="section-label">{t('auth.resetTitle')}</span>
             <h1 className="text-3xl md:text-5xl text-black mb-4 leading-[1.1]" style={{ fontFamily: 'var(--font-heading)' }}>
-              {forgotStep === 1 ? 'Forgot Password' : 'Set New Password'}
+              {forgotStep === 1 ? t('auth.forgotTitle') : t('auth.setNewPasswordTitle')}
             </h1>
             <p className="text-text-tertiary text-sm mb-8" style={{ fontFamily: 'var(--font-ui)' }}>
-              {forgotStep === 1
-                ? 'Enter your email to receive a reset token'
-                : 'Enter the token and your new password'}
+              {forgotStep === 1 ? t('auth.resetDesc1') : t('auth.resetDesc2')}
             </p>
 
             {error && (
@@ -375,28 +375,28 @@ export default function AuthPage() {
             {forgotStep === 1 ? (
               <form onSubmit={handleForgotRequest} className="space-y-4">
                 <div>
-                  <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>Email</label>
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.email')}</label>
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                 </div>
                 <button type="submit" disabled={loading} className="btn btn-primary w-full mt-3 disabled:opacity-50">
-                  {loading ? 'Generating...' : 'Generate Reset Token'}
+                  {loading ? t('auth.generating') : t('auth.generateToken')}
                 </button>
               </form>
             ) : (
               <form onSubmit={handleForgotReset} className="space-y-4">
                 {resetToken && (
                   <div className="p-3 bg-surface-alt border border-black/[0.08]">
-                    <p className="text-[10px] text-text-tertiary uppercase tracking-wider mb-1" style={{ fontFamily: 'var(--font-ui)' }}>Your Reset Token</p>
+                    <p className="text-[10px] text-text-tertiary uppercase tracking-wider mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.yourToken')}</p>
                     <p className="text-xs font-mono text-black break-all" style={{ fontFamily: 'var(--font-ui)' }}>{resetToken}</p>
-                    <button type="button" onClick={() => { navigator.clipboard.writeText(resetToken); setSuccessMsg('Token copied!'); }} className="text-[10px] text-verdigris mt-1" style={{ fontFamily: 'var(--font-ui)' }}>Copy token</button>
+                    <button type="button" onClick={() => { navigator.clipboard.writeText(resetToken); setSuccessMsg(t('auth.tokenCopied')); }} className="text-[10px] text-verdigris mt-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.copyToken')}</button>
                   </div>
                 )}
                 <div>
-                  <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>Reset Token</label>
-                  <input type="text" value={token} onChange={(e) => setToken(e.target.value)} required placeholder="Paste your token here" className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors placeholder:text-text-tertiary/50" style={{ fontFamily: 'var(--font-ui)' }} />
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.resetToken')}</label>
+                  <input type="text" value={token} onChange={(e) => setToken(e.target.value)} required placeholder={t('auth.resetTokenPlaceholder')} className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors placeholder:text-text-tertiary/50" style={{ fontFamily: 'var(--font-ui)' }} />
                 </div>
                 <div>
-                  <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>New Password</label>
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.newPassword')}</label>
                   <div className="relative">
                     <input type={showNewPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full py-3 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                     <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-black transition-colors">
@@ -409,7 +409,7 @@ export default function AuthPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>Confirm New Password</label>
+                  <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.confirmNewPassword')}</label>
                   <div className="relative">
                     <input type={showConfirmNewPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full py-3 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                     <button type="button" onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-black transition-colors">
@@ -422,14 +422,14 @@ export default function AuthPage() {
                   </div>
                 </div>
                 <button type="submit" disabled={loading} className="btn btn-primary w-full mt-3 disabled:opacity-50">
-                  {loading ? 'Resetting...' : 'Reset Password'}
+                  {loading ? t('auth.resetting') : t('auth.resetCta')}
                 </button>
               </form>
             )}
 
             <p className="text-center text-sm text-text-tertiary mt-4" style={{ fontFamily: 'var(--font-ui)' }}>
               <button onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); setForgotStep(1); setResetToken(''); setToken(''); }} className="text-black font-medium hover:text-verdigris transition-colors">
-                Back to Sign In
+                {t('auth.backToSignIn')}
               </button>
             </p>
           </div>
@@ -437,9 +437,9 @@ export default function AuthPage() {
 
         {mode !== 'forgot' && (
           <p className="text-center text-sm text-text-tertiary mt-3" style={{ fontFamily: 'var(--font-ui)' }}>
-            {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
+            {mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}{' '}
             <button onClick={toggleMode} className="text-black font-medium hover:text-verdigris transition-colors">
-              {mode === 'login' ? 'Sign Up' : 'Sign In'}
+              {mode === 'login' ? t('auth.signUp') : t('auth.signIn')}
             </button>
           </p>
         )}

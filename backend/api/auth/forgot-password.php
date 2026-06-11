@@ -8,6 +8,7 @@
  */
 
 require_once __DIR__ . '/../middleware.php';
+require_once __DIR__ . '/../lib/mail_helper.php';
 
 set_cors_headers();
 init_session();
@@ -57,11 +58,10 @@ $stmt = $db->prepare("
 ");
 $stmt->execute([$user['id'], $token, $expiresAt]);
 
-// In production: send email with reset link
-// For local dev: return token directly
+// Send email with reset link
+send_password_reset($email, $user['name'], $token);
+
 json_response([
     'message' => 'If an account with that email exists, a reset link has been generated.',
-    'token' => $token,
     'expires_in' => 3600,
-    'note' => 'For local development: use this token to reset your password.',
 ]);

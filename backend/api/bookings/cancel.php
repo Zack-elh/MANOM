@@ -3,7 +3,7 @@
  * MANOM BarberShop - Cancel Booking API
  * POST /api/bookings/cancel.php
  * 
- * Rule: Cancel window >24h enforced server-side, not just UI
+ * Rule: Cancel window enforced server-side (CANCEL_WINDOW_HOURS), not just UI
  */
 
 require_once __DIR__ . '/../middleware.php';

@@ -99,11 +99,10 @@ function get_client_ip(): string
 }
 
 /**
- * Require authenticated user - supports both session and token auth
+ * Require authenticated user (session-only)
  */
 function require_auth(): array
 {
-    // Try session first
     init_session();
     if (!empty($_SESSION['user_id'])) {
         return [
@@ -112,32 +111,6 @@ function require_auth(): array
             'role'  => $_SESSION['user_role'],
             'name'  => $_SESSION['user_name'],
         ];
-    }
-
-    // Fallback: token auth via header
-    $headers = function_exists('getallheaders') ? getallheaders() : [];
-    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m)) {
-        $token = $m[1];
-        $parts = explode(':', base64_decode($token));
-        if (count($parts) === 3) {
-            [$userId, $email, $hash] = $parts;
-            $expected = hash_hmac('sha256', $userId . ':' . $email, 'manom_dev_secret');
-            if (hash_equals($expected, $hash)) {
-                $db = db();
-                $stmt = $db->prepare("SELECT id, name, email, role FROM users WHERE id = ? AND email = ?");
-                $stmt->execute([(int)$userId, $email]);
-                $user = $stmt->fetch();
-                if ($user) {
-                    return [
-                        'id'    => $user['id'],
-                        'email' => $user['email'],
-                        'role'  => $user['role'],
-                        'name'  => $user['name'],
-                    ];
-                }
-            }
-        }
     }
 
     json_response(['error' => 'Authentication required'], 401);

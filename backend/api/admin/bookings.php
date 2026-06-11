@@ -64,6 +64,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt->execute($params);
     $bookings = $stmt->fetchAll();
 
+    // Parse multi-service notes
+    foreach ($bookings as &$booking) {
+        $multiNote = json_decode($booking['notes'], true);
+        if (isset($multiNote['__multi__']) && is_array($multiNote['__multi__'])) {
+            $ids = $multiNote['__multi__'];
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $stmt2 = $db->prepare("SELECT id, title, duration, price FROM services WHERE id IN ($placeholders)");
+            $stmt2->execute($ids);
+            $multiServices = $stmt2->fetchAll();
+            $names = array_column($multiServices, 'title');
+            $booking['service_title'] = implode(', ', $names);
+            $booking['multi_service_ids'] = $ids;
+            $booking['price'] = array_sum(array_column($multiServices, 'price'));
+            $booking['duration'] = array_sum(array_column($multiServices, 'duration'));
+        }
+    }
+    unset($booking);
+
     json_response(['bookings' => $bookings, 'total' => count($bookings)]);
 
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -139,6 +157,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     } catch (Exception $e) {
         $db->rollBack();
         json_response(['error' => 'Failed to create booking'], 500);
+    }
+
+} elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+    // Admin cancel booking
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if (!$input || empty($input['booking_id'])) {
+        json_response(['error' => 'booking_id is required'], 400);
+    }
+
+    $bookingId = (int)$input['booking_id'];
+    $reason = isset($input['reason']) ? sanitize_input($input['reason']) : 'Cancelled by admin';
+
+    $stmt = $db->prepare("SELECT id, status, ref_code FROM bookings WHERE id = ?");
+    $stmt->execute([$bookingId]);
+    $booking = $stmt->fetch();
+
+    if (!$booking) {
+        json_response(['error' => 'Booking not found'], 404);
+    }
+
+    if ($booking['status'] === 'cancelled') {
+        json_response(['error' => 'Booking is already cancelled'], 400);
+    }
+
+    if ($booking['status'] === 'completed') {
+        json_response(['error' => 'Cannot cancel a completed booking'], 400);
+    }
+
+    try {
+        $db->beginTransaction();
+
+        $oldStatus = $booking['status'];
+
+        $stmt = $db->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
+        $stmt->execute([$bookingId]);
+
+        $stmt = $db->prepare("
+            INSERT INTO bookings_audit (booking_id, action, old_status, new_status, performed_by, notes)
+            VALUES (?, 'cancelled', ?, 'cancelled', ?, ?)
+        ");
+        $stmt->execute([$bookingId, $oldStatus, $admin['id'], $reason]);
+
+        $db->commit();
+
+        json_response([
+            'message' => 'Booking cancelled',
+            'booking' => [
+                'id' => $booking['id'],
+                'ref_code' => $booking['ref_code'],
+                'status' => 'cancelled',
+            ],
+        ]);
+    } catch (Exception $e) {
+        $db->rollBack();
+        json_response(['error' => 'Failed to cancel booking'], 500);
     }
 
 } else {

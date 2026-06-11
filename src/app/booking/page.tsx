@@ -16,6 +16,7 @@ export default function BookingPage() {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
   const [authenticated, setAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [services, setServices] = useState<Service[]>([]);
@@ -30,25 +31,28 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
 
+  const isMonday = selectedDate && new Date(selectedDate).getDay() === 1;
+
   useEffect(() => {
     const auth = localStorage.getItem('manom_auth');
     if (!auth) {
       router.push('/auth');
     } else {
       setAuthenticated(true);
+      try { const p = JSON.parse(auth); if (p.user?.role === 'admin') setIsAdmin(true); } catch {}
       Promise.all([
-        authFetch('/api/admin/services.php').then(r => r.json()),
-        authFetch('/api/admin/barbers.php').then(r => r.json()),
+        authFetch('/api/public/services.php').then(r => r.json()),
+        authFetch('/api/public/barbers.php').then(r => r.json()),
       ]).then(([servicesData, barbersData]) => {
         setServices((servicesData.services || []).filter((s: Service & { active?: number }) => s.active !== 0));
         setBarbers((barbersData.barbers || []).filter((b: Barber & { active?: number }) => b.active !== 0));
-      }).catch(() => {});
+      }).catch((err) => console.error('Failed to load booking data:', err));
     }
     setLoading(false);
   }, [router]);
 
   useEffect(() => {
-    if (selectedDate && selectedBarber && selectedServices.length > 0) {
+    if (selectedDate && selectedBarber && selectedServices.length > 0 && !isMonday) {
       setLoadingSlots(true);
       const primaryService = selectedServices[0];
       authFetch(`/api/bookings/slots.php?barber_id=${selectedBarber}&date=${selectedDate}&service_id=${primaryService}`)
@@ -65,25 +69,21 @@ export default function BookingPage() {
 
   const selectedServicesData = services.filter((s) => selectedServices.includes(s.id));
   const selectedBarberData = barbers.find((b) => b.id === selectedBarber);
-  const totalPrice = selectedServicesData.reduce((sum, s) => sum + s.price, 0);
+  const totalPrice = selectedServicesData.reduce((sum, s) => sum + Number(s.price), 0);
   const totalDuration = selectedServicesData.reduce((sum, s) => sum + s.duration, 0);
 
   const handleConfirm = async () => {
     if (!selectedBarber || !selectedDate || !selectedTime || selectedServices.length === 0) return;
     setSubmitting(true);
     try {
-      let lastBooking;
-      for (const serviceId of selectedServices) {
-        const res = await authFetch('/api/bookings/create.php', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ service_id: serviceId, barber_id: selectedBarber, booking_date: selectedDate, booking_time: selectedTime }),
-        });
-        const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Booking failed'); setSubmitting(false); return; }
-        lastBooking = data.booking;
-      }
-      if (lastBooking) setConfirmation(lastBooking);
-    } catch { alert('Booking failed'); } finally { setSubmitting(false); }
+      const res = await authFetch('/api/bookings/create.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service_ids: selectedServices, barber_id: selectedBarber, booking_date: selectedDate, booking_time: selectedTime }),
+      });
+      const data = await res.json();
+      if (!res.ok) { console.error('Booking error:', data, 'Status:', res.status); alert(data.error || `Booking failed (${res.status})`); setSubmitting(false); return; }
+      if (data.booking) setConfirmation(data.booking);
+    } catch (err) { console.error('Booking fetch error:', err); alert('Booking failed'); } finally { setSubmitting(false); }
   };
 
   if (loading) return <div className="min-h-screen bg-white flex items-center justify-center"><p className="text-text-tertiary text-sm" style={{ fontFamily: 'var(--font-ui)' }}>{t('common.loading')}</p></div>;
@@ -113,7 +113,7 @@ export default function BookingPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-[720px] mx-auto px-6 md:px-10 py-12 md:py-20">
-        <Link href="/" className="inline-flex items-center gap-2 text-text-tertiary hover:text-black transition-colors text-sm mb-12" style={{ fontFamily: 'var(--font-ui)' }}>
+        <Link href={isAdmin ? '/admin' : '/dashboard'} className="inline-flex items-center gap-2 text-text-tertiary hover:text-black transition-colors text-sm mb-12" style={{ fontFamily: 'var(--font-ui)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           {t('common.backToHome')}
         </Link>
@@ -166,9 +166,14 @@ export default function BookingPage() {
             <div className="space-y-0">
               {barbers.map((barber) => (
                 <button key={barber.id} onClick={() => setSelectedBarber(barber.id)} className={`w-full flex items-center justify-between py-5 border-b border-black/[0.08] text-left transition-colors ${selectedBarber === barber.id ? 'text-verdigris' : 'hover:text-verdigris'}`}>
-                  <div>
-                    <span className="text-sm font-medium block" style={{ fontFamily: 'var(--font-ui)' }}>{barber.name}</span>
-                    <span className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>{barber.specialty || t('common.walkIn')}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-verdigris/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-verdigris uppercase">{barber.name.charAt(0)}</span>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium block" style={{ fontFamily: 'var(--font-ui)' }}>{barber.name}</span>
+                      <span className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>{barber.specialty || t('common.walkIn')}</span>
+                    </div>
                   </div>
                   <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedBarber === barber.id ? 'border-verdigris bg-verdigris' : 'border-black/20'}`}>
                     {selectedBarber === barber.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -188,12 +193,14 @@ export default function BookingPage() {
             <h2 className="text-xl text-black mb-6" style={{ fontFamily: 'var(--font-heading)' }}>{t('booking.selectDateTime')}</h2>
             <div className="mb-8">
               <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.date')}</label>
-              <input type="date" value={selectedDate} onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(''); }} min={new Date().toISOString().split('T')[0]} className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
+              <input type="date" value={selectedDate} onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(''); if (e.target.value && new Date(e.target.value).getDay() === 1) setSelectedDate(e.target.value); }} min={new Date().toISOString().split('T')[0]} className="w-full py-3 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
             </div>
             <div className="mb-8">
               <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-3" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.time')}</label>
               {loadingSlots ? (
                 <p className="text-text-tertiary text-xs" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.loadingSlots')}</p>
+              ) : isMonday ? (
+                <p className="text-text-tertiary text-xs" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.closedMonday')}</p>
               ) : slots.length === 0 ? (
                 <p className="text-text-tertiary text-xs" style={{ fontFamily: 'var(--font-ui)' }}>{selectedDate ? t('booking.noSlots') : t('booking.selectDateFirst')}</p>
               ) : (

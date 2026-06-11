@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useLanguage } from '@/i18n/context';
 import { useCurrency } from '@/context/CurrencyContext';
 import { authFetch } from '@/lib/authFetch';
 
 interface Booking {
-  id: number; ref_code: string; service_title: string; barber_name: string; client_name: string; client_email: string;
+  id: number; ref_code: string; service_title: string; barber_name: string; client_name: string | null; client_email: string;
   booking_date: string; booking_time: string; status: string; price: number; notes: string | null;
 }
 interface Service { id: number; title: string; price: number; duration: number; }
 interface Barber { id: number; name: string; }
+interface Client { id: number; name: string; email: string; phone: string | null; }
+interface Slot { time: string; datetime: string; }
 
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -19,9 +21,21 @@ export default function AdminBookingsPage() {
   const [filter, setFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ service_id: '', barber_id: '', booking_date: '', booking_time: '', user_id: '', notes: '' });
+  const [form, setForm] = useState({ service_id: '', barber_id: '', booking_date: '', booking_time: '', notes: '' });
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [clientMode, setClientMode] = useState<'search' | 'walkin'>('search');
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientResults, setClientResults] = useState<Client[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [walkinName, setWalkinName] = useState('');
+  const [walkinEmail, setWalkinEmail] = useState('');
+  const [walkinPhone, setWalkinPhone] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
 
@@ -34,25 +48,115 @@ export default function AdminBookingsPage() {
       setBookings(bookingsData.bookings || []);
       setServices(servicesData.services || []);
       setBarbers(barbersData.barbers || []);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => setError('Failed to load data')).finally(() => setLoading(false));
   }, [filter, search]);
+
+  // Fetch available slots when barber + date + service are selected
+  useEffect(() => {
+    if (!form.barber_id || !form.booking_date || !form.service_id) {
+      setSlots([]);
+      return;
+    }
+    setLoadingSlots(true);
+    fetch(`/api/bookings/slots.php?barber_id=${form.barber_id}&date=${form.booking_date}&service_id=${form.service_id}`)
+      .then(r => r.json())
+      .then(data => setSlots(data.slots || []))
+      .catch((err) => console.error('Failed to load slots:', err))
+      .finally(() => setLoadingSlots(false));
+  }, [form.barber_id, form.booking_date, form.service_id]);
+
+  // Client search debounce
+  useEffect(() => {
+    if (clientMode !== 'search' || clientSearch.length < 2) { setClientResults([]); return; }
+    const timer = setTimeout(() => {
+      authFetch(`/api/admin/clients.php?search=${encodeURIComponent(clientSearch)}`)
+        .then(r => r.json())
+        .then(data => setClientResults(data.clients || []))
+        .catch((err) => console.error('Client search failed:', err));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [clientSearch, clientMode]);
 
   const handleCreate = async () => {
     if (!form.service_id || !form.barber_id || !form.booking_date || !form.booking_time) return;
     setCreating(true);
+    setError('');
+    setCreateSuccess('');
+
+    const body: Record<string, unknown> = {
+      service_id: parseInt(form.service_id),
+      barber_id: parseInt(form.barber_id),
+      booking_date: form.booking_date,
+      booking_time: form.booking_time,
+      notes: form.notes || null,
+    };
+
+    if (clientMode === 'search' && selectedClient) {
+      body.user_id = selectedClient.id;
+    } else if (clientMode === 'walkin') {
+      body.user_id = null;
+      const info = [`Walk-in: ${walkinName || 'Guest'}`];
+      if (walkinEmail) info.push(walkinEmail);
+      if (walkinPhone) info.push(walkinPhone);
+      if (form.notes) info.push(`Notes: ${form.notes}`);
+      body.notes = info.join(' | ');
+    }
+
     try {
       const res = await authFetch('/api/admin/bookings.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service_id: parseInt(form.service_id), barber_id: parseInt(form.barber_id), booking_date: form.booking_date, booking_time: form.booking_time, user_id: form.user_id ? parseInt(form.user_id) : null, notes: form.notes || null }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (res.ok) { setShowCreate(false); setForm({ service_id: '', barber_id: '', booking_date: '', booking_time: '', user_id: '', notes: '' }); window.location.reload(); }
-      else alert(data.error || 'Failed to create');
-    } catch { alert('Failed to create'); } finally { setCreating(false); }
+      if (res.ok) {
+        setShowCreate(false);
+        resetForm();
+        setCreateSuccess(`Booking ${data.booking?.ref_code || ''} created`);
+        // Reload list
+        authFetch(`/api/admin/bookings.php?status=${filter}&search=${search}`).then(r => r.json()).then(d => setBookings(d.bookings || [])).catch((err) => console.error('Failed to reload bookings:', err));
+      } else {
+        setError(data.error || 'Failed to create');
+      }
+    } catch { setError('Failed to create'); }
+    setCreating(false);
+  };
+
+  const handleAdminCancel = async (bookingId: number) => {
+    const reason = prompt(t('admin.cancelReason'));
+    if (reason === null) return;
+    setCancellingId(bookingId);
+    setError('');
+    setCreateSuccess('');
+    try {
+      const res = await authFetch('/api/admin/bookings.php', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId, reason: reason || 'Cancelled by admin' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreateSuccess(`Booking ${data.booking?.ref_code || ''} cancelled`);
+        authFetch(`/api/admin/bookings.php?status=${filter}&search=${search}`).then(r => r.json()).then(d => setBookings(d.bookings || [])).catch((err) => console.error('Failed to reload bookings:', err));
+      } else setError(data.error || 'Failed to cancel');
+    } catch { setError('Failed to cancel'); }
+    setCancellingId(null);
+  };
+
+  const resetForm = () => {
+    setForm({ service_id: '', barber_id: '', booking_date: '', booking_time: '', notes: '' });
+    setSlots([]);
+    setClientMode('search');
+    setClientSearch('');
+    setClientResults([]);
+    setSelectedClient(null);
+    setWalkinName('');
+    setWalkinEmail('');
+    setWalkinPhone('');
   };
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const formatTime = (time: string) => { const [h, m] = time.split(':'); return `${parseInt(h) % 12 || 12}:${m} ${parseInt(h) >= 12 ? 'PM' : 'AM'}`; };
+
+  const selectedService = services.find(s => s.id === parseInt(form.service_id));
 
   return (
     <div>
@@ -61,47 +165,124 @@ export default function AdminBookingsPage() {
           <span className="section-label">{t('admin.manage')}</span>
           <h1 className="text-2xl md:text-3xl text-black" style={{ fontFamily: 'var(--font-heading)' }}>{t('admin.bookings')}</h1>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="btn btn-primary text-xs">{showCreate ? t('common.cancel') : t('admin.newBooking')}</button>
+        <button onClick={() => { setShowCreate(!showCreate); if (!showCreate) resetForm(); }} className="btn btn-primary text-xs">{showCreate ? t('common.cancel') : t('admin.newBooking')}</button>
       </div>
+
+      {error && <div className="mb-4 py-3 px-4 bg-red-50 border border-red-200 text-red-700 text-xs flex justify-between" style={{ fontFamily: 'var(--font-ui)' }}><span>{error}</span><button onClick={() => setError('')} className="font-bold">&times;</button></div>}
+      {createSuccess && <div className="mb-4 py-3 px-4 bg-green-50 border border-green-200 text-green-700 text-xs flex justify-between" style={{ fontFamily: 'var(--font-ui)' }}><span>{createSuccess}</span><button onClick={() => setCreateSuccess('')} className="font-bold">&times;</button></div>}
 
       {showCreate && (
         <div className="p-6 bg-surface-alt border border-black/[0.04] mb-8">
           <h3 className="text-sm font-semibold mb-4" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.createManualBooking')}</h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
+
+          {/* Service | Barber | Date */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.service')}</label>
-              <select value={form.service_id} onChange={(e) => setForm({ ...form, service_id: e.target.value })} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }}>
-                <option value="">{t('admin.service')}</option>
-                {services.map((s) => <option key={s.id} value={s.id}>{s.title} — {formatPrice(s.price)}</option>)}
+              <select value={form.service_id} onChange={(e) => setForm({ ...form, service_id: e.target.value, booking_time: '' })} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }}>
+                <option value="">—</option>
+                {services.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.duration}min — {formatPrice(s.price)})</option>)}
               </select>
             </div>
             <div>
               <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.barber')}</label>
-              <select value={form.barber_id} onChange={(e) => setForm({ ...form, barber_id: e.target.value })} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }}>
-                <option value="">{t('admin.barber')}</option>
+              <select value={form.barber_id} onChange={(e) => setForm({ ...form, barber_id: e.target.value, booking_time: '' })} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }}>
+                <option value="">—</option>
                 {barbers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
             <div>
               <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.date')}</label>
-              <input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value })} min={new Date().toISOString().split('T')[0]} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }} />
-            </div>
-            <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.time')}</label>
-              <input type="time" value={form.booking_time} onChange={(e) => setForm({ ...form, booking_time: e.target.value })} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }} />
+              <input type="date" value={form.booking_date} onChange={(e) => setForm({ ...form, booking_date: e.target.value, booking_time: '' })} min={new Date().toISOString().split('T')[0]} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }} />
             </div>
           </div>
-          <button onClick={handleCreate} disabled={creating || !form.service_id || !form.barber_id || !form.booking_date || !form.booking_time} className="btn btn-primary text-xs disabled:opacity-30">
+
+          {/* Time slots */}
+          {form.barber_id && form.booking_date && form.service_id && (
+            <div className="mb-4">
+              <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.time')}</label>
+              {loadingSlots ? (
+                <p className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>{t('common.loading')}</p>
+              ) : slots.length === 0 ? (
+                <p className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>No available slots</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {slots.map((slot) => (
+                    <button
+                      key={slot.time}
+                      onClick={() => setForm({ ...form, booking_time: slot.time })}
+                      className={`px-3 py-1.5 text-xs font-medium border transition-colors ${form.booking_time === slot.time ? 'bg-black text-white border-black' : 'bg-white border-black/[0.12] text-black hover:border-black'}`}
+                      style={{ fontFamily: 'var(--font-ui)' }}
+                    >
+                      {formatTime(slot.time)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Client section */}
+          <div className="mb-4">
+            <div className="flex gap-4 mb-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="clientMode" checked={clientMode === 'search'} onChange={() => setClientMode('search')} className="accent-verdigris" />
+                <span className="text-xs font-medium" style={{ fontFamily: 'var(--font-ui)' }}>Existing client</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="clientMode" checked={clientMode === 'walkin'} onChange={() => setClientMode('walkin')} className="accent-verdigris" />
+                <span className="text-xs font-medium" style={{ fontFamily: 'var(--font-ui)' }}>{t('common.walkIn')}</span>
+              </label>
+            </div>
+
+            {clientMode === 'search' ? (
+              <div className="relative">
+                <input type="text" value={clientSearch} onChange={(e) => { setClientSearch(e.target.value); setSelectedClient(null); }} placeholder="Search client by name or email..." className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }} />
+                {selectedClient && (
+                  <div className="mt-2 py-2 px-3 bg-verdigris/5 border border-verdigris/20 text-xs" style={{ fontFamily: 'var(--font-ui)' }}>
+                    {selectedClient.name} — {selectedClient.email} {selectedClient.phone ? `— ${selectedClient.phone}` : ''}
+                  </div>
+                )}
+                {!selectedClient && clientResults.length > 0 && (
+                  <div className="absolute z-10 top-full left-0 right-0 bg-white border border-black/[0.08] shadow-lg max-h-48 overflow-y-auto">
+                    {clientResults.map((c) => (
+                      <button key={c.id} type="button" onClick={() => { setSelectedClient(c); setClientSearch(''); setClientResults([]); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-alt transition-colors" style={{ fontFamily: 'var(--font-ui)' }}>
+                        <span className="font-medium">{c.name}</span>
+                        <span className="text-text-tertiary ml-2">{c.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                <input type="text" value={walkinName} onChange={(e) => setWalkinName(e.target.value)} placeholder="Name (optional)" className="py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }} />
+                <input type="email" value={walkinEmail} onChange={(e) => setWalkinEmail(e.target.value)} placeholder="Email (optional)" className="py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }} />
+                <input type="tel" value={walkinPhone} onChange={(e) => setWalkinPhone(e.target.value)} placeholder="Phone (optional)" className="py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }} />
+              </div>
+            )}
+          </div>
+
+          {/* Notes */}
+          {clientMode === 'search' && (
+            <div className="mb-4">
+              <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.notes')}</label>
+              <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris resize-none" style={{ fontFamily: 'var(--font-ui)' }} />
+            </div>
+          )}
+
+          <button onClick={handleCreate} disabled={creating || !form.service_id || !form.barber_id || !form.booking_date || !form.booking_time || (clientMode === 'search' && !selectedClient)} className="btn btn-primary text-xs disabled:opacity-30">
             {creating ? t('admin.creating') : t('admin.createBooking')}
           </button>
         </div>
       )}
 
+      {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="flex gap-1 bg-surface-alt p-1">
           {[
             { value: '', label: t('admin.all') },
-            { value: 'pending', label: t('admin.pending') },
+            { value: 'pending', label: 'Pending' },
             { value: 'confirmed', label: 'Confirmed' },
             { value: 'completed', label: 'Completed' },
             { value: 'cancelled', label: 'Cancelled' },
@@ -114,6 +295,7 @@ export default function AdminBookingsPage() {
         <input type="text" placeholder={t('admin.searchPlaceholder')} value={search} onChange={(e) => setSearch(e.target.value)} className="px-4 py-2 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris w-64" style={{ fontFamily: 'var(--font-ui)' }} />
       </div>
 
+      {/* Bookings list */}
       {loading ? (
         <div className="py-12 text-center"><p className="text-text-tertiary text-sm" style={{ fontFamily: 'var(--font-ui)' }}>{t('common.loading')}</p></div>
       ) : bookings.length === 0 ? (
@@ -131,6 +313,7 @@ export default function AdminBookingsPage() {
                 <th className="text-left py-3 text-[10px] text-text-tertiary uppercase tracking-wider font-medium">{t('admin.time')}</th>
                 <th className="text-left py-3 text-[10px] text-text-tertiary uppercase tracking-wider font-medium">Status</th>
                 <th className="text-left py-3 text-[10px] text-text-tertiary uppercase tracking-wider font-medium">{t('admin.price')}</th>
+                <th className="py-3 w-16"></th>
               </tr>
             </thead>
             <tbody>
@@ -146,6 +329,13 @@ export default function AdminBookingsPage() {
                     <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 ${b.status === 'confirmed' ? 'bg-verdigris/10 text-verdigris' : b.status === 'pending' ? 'bg-amber-50 text-amber-700' : b.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-black/5 text-text-tertiary'}`}>{b.status}</span>
                   </td>
                   <td className="py-3 font-medium">{formatPrice(b.price)}</td>
+                  <td className="py-3">
+                    {b.status !== 'cancelled' && b.status !== 'completed' && (
+                      <button onClick={() => handleAdminCancel(b.id)} disabled={cancellingId === b.id} className="text-[10px] text-red-600 hover:text-red-700 font-medium uppercase tracking-wider disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
+                        {cancellingId === b.id ? '...' : t('admin.cancel')}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

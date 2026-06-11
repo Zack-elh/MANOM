@@ -29,6 +29,12 @@ if ($error) {
 $name = sanitize_input($input['name']);
 $email = sanitize_input($input['email']);
 $password = $input['password'];
+$confirmPassword = isset($input['confirm_password']) ? $input['confirm_password'] : '';
+
+// Validate password confirmation
+if ($password !== $confirmPassword) {
+    json_response(['error' => 'Passwords do not match'], 400);
+}
 
 // Validate email
 if (!validate_email($email)) {
