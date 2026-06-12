@@ -102,9 +102,7 @@ export const Navigation: React.FC = () => {
           <span className={`w-px h-3 ${scrolled ? 'bg-black/10' : 'bg-white/20'}`} />
 
           <Link href="/auth">
-            <button className={`px-6 py-2.5 text-[11px] font-semibold tracking-[0.1em] uppercase transition-all duration-300 ${
-              scrolled ? 'bg-black text-white hover:bg-verdigris' : 'bg-white text-black hover:bg-verdigris hover:text-white'
-            }`} style={{ fontFamily: 'var(--font-ui)' }}>
+            <button className={`btn btn-primary text-[11px] ${!scrolled ? '!bg-white !text-black' : ''}`}>
               {t('nav.bookNow')}
             </button>
           </Link>
@@ -139,7 +137,7 @@ export const Navigation: React.FC = () => {
               ))}
             </div>
             <Link href="/auth" onClick={() => setMobileOpen(false)}>
-              <button className="w-full px-6 py-3 text-[11px] font-semibold tracking-[0.1em] uppercase bg-black text-white hover:bg-verdigris transition-all mt-2">
+              <button className="btn btn-primary w-full text-[11px] mt-2">
                 {t('nav.bookNow')}
               </button>
             </Link>

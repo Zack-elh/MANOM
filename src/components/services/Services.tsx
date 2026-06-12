@@ -98,7 +98,7 @@ export const Services: React.FC = () => {
                       {i18n ? t(i18n.desc) : service.description || ''}
                     </p>
                     <Link href="/auth">
-                      <button className="w-full py-3 text-[11px] font-semibold tracking-[0.1em] uppercase border border-black/[0.08] text-black hover:bg-black hover:text-white transition-all duration-300" style={{ fontFamily: 'var(--font-ui)' }}>
+                      <button className="btn btn-primary w-full text-[11px]">
                         {t('services.cta')}
                       </button>
                     </Link>

@@ -9,7 +9,7 @@ import { authFetch } from '@/lib/authFetch';
 
 interface Service { id: number; title: string; duration: number; price: number; }
 interface Barber { id: number; name: string; specialty: string | null; }
-interface Slot { time: string; datetime: string; }
+interface Slot { time: string; datetime: string; available?: boolean; }
 
 export default function BookingPage() {
   const router = useRouter();
@@ -209,8 +209,9 @@ export default function BookingPage() {
                     const hour = parseInt(slot.time.split(':')[0]);
                     const displayTime = `${hour % 12 || 12}:${slot.time.split(':')[1]}`;
                     const ampm = hour >= 12 ? 'PM' : 'AM';
+                    const busy = slot.available === false;
                     return (
-                      <button key={slot.time} onClick={() => setSelectedTime(slot.time)} className={`py-3 text-xs font-medium border transition-all ${selectedTime === slot.time ? 'border-black bg-black text-white' : 'border-black/10 hover:border-black/30'}`} style={{ fontFamily: 'var(--font-ui)' }}>
+                      <button key={slot.time} disabled={busy} onClick={() => busy ? null : setSelectedTime(slot.time)} className={`py-3 text-xs font-medium border transition-all ${selectedTime === slot.time ? 'border-black bg-black text-white' : busy ? 'bg-black text-white border-black/20 cursor-not-allowed' : 'border-black/10 hover:border-black/30'}`} style={{ fontFamily: 'var(--font-ui)' }}>
                         {displayTime} {ampm}
                       </button>
                     );

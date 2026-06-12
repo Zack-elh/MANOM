@@ -279,6 +279,11 @@ export default function AuthPage() {
                 {loading ? t('auth.signingIn') : t('auth.signInCta')}
               </button>
             </form>
+
+            <p className="text-center text-sm text-text-tertiary mt-3" style={{ fontFamily: 'var(--font-ui)' }}>
+              {t('auth.noAccount')}{' '}
+              <button onClick={toggleMode} className="text-black font-medium hover:text-verdigris transition-colors">{t('auth.signUp')}</button>
+            </p>
           </div>
 
           {/* Sign Up Form */}
@@ -291,30 +296,30 @@ export default function AuthPage() {
             }}
           >
             <span className="section-label">{t('auth.createAccount')}</span>
-            <h1 className="text-3xl md:text-5xl text-black mb-4 leading-[1.1]" style={{ fontFamily: 'var(--font-heading)' }}>
+            <h1 className="text-3xl md:text-5xl text-black mb-2 leading-[1.1]" style={{ fontFamily: 'var(--font-heading)' }}>
               {t('auth.signUpTitle')}
             </h1>
-            <p className="text-text-tertiary text-sm mb-8" style={{ fontFamily: 'var(--font-ui)' }}>
+            <p className="text-text-tertiary text-sm mb-4" style={{ fontFamily: 'var(--font-ui)' }}>
               {t('auth.signUpDesc')}
             </p>
 
             {error && mode === 'signup' && (
-              <p className="text-red-600 text-xs mb-4" style={{ fontFamily: 'var(--font-ui)' }}>{error}</p>
+              <p className="text-red-600 text-xs mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{error}</p>
             )}
 
-            <form onSubmit={handleSignup} className="space-y-3">
+            <form onSubmit={handleSignup} className="space-y-1.5">
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.fullName')}</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full py-2 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-0.5" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.fullName')}</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full py-1.5 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
               </div>
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.email')}</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full py-2 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-0.5" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.email')}</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full py-1.5 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
               </div>
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.password')}</label>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-0.5" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.password')}</label>
                 <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full py-2 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
+                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full py-1.5 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-black transition-colors">
                     {showPassword ? (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -325,9 +330,9 @@ export default function AuthPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.confirmPassword')}</label>
+                <label className="text-xs text-text-tertiary uppercase tracking-wider block mb-0.5" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.confirmPassword')}</label>
                 <div className="relative">
-                  <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full py-2 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
+                  <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full py-1.5 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-black transition-colors">
                     {showConfirmPassword ? (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -435,14 +440,6 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {mode !== 'forgot' && (
-          <p className="text-center text-sm text-text-tertiary mt-3" style={{ fontFamily: 'var(--font-ui)' }}>
-            {mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}{' '}
-            <button onClick={toggleMode} className="text-black font-medium hover:text-verdigris transition-colors">
-              {mode === 'login' ? t('auth.signUp') : t('auth.signIn')}
-            </button>
-          </p>
-        )}
       </div>
     </div>
   )

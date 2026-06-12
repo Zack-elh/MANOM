@@ -89,8 +89,8 @@ foreach ($availability as $avail) {
     }
 }
 
-// Filter out booked slots
-$availableSlots = [];
+// Build all slots with availability status
+$allSlotsWithStatus = [];
 $now = new DateTime();
 $isToday = ($date === $now->format('Y-m-d'));
 
@@ -117,17 +117,16 @@ foreach ($allSlots as $slot) {
         }
     }
 
-    if ($isAvailable) {
-        $availableSlots[] = [
-            'time'      => date('H:i', strtotime($slot)),
-            'datetime'  => $date . ' ' . $slot,
-        ];
-    }
+    $allSlotsWithStatus[] = [
+        'time'      => date('H:i', strtotime($slot)),
+        'datetime'  => $date . ' ' . $slot,
+        'available' => $isAvailable,
+    ];
 }
 
 json_response([
     'date'      => $date,
     'barber_id' => $barberId,
     'duration'  => $duration,
-    'slots'     => array_values($availableSlots),
+    'slots'     => array_values($allSlotsWithStatus),
 ]);

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { LanguageProvider } from "@/i18n/context";
 import { CurrencyProvider } from "@/context/CurrencyContext";
+import { NeonEffect } from "@/components/ui/NeonEffect";
 
 export const metadata: Metadata = {
   title: "MANOM | Premium Grooming Experience",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <LanguageProvider>
           <CurrencyProvider>
+            <NeonEffect />
             {children}
           </CurrencyProvider>
         </LanguageProvider>
