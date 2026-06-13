@@ -11,19 +11,16 @@ function injectSpans(btn: Element) {
   }
 }
 
+function scanAll() {
+  document.querySelectorAll('.btn-primary, .btn-white').forEach(injectSpans);
+}
+
 export function NeonEffect() {
   useEffect(() => {
-    document.querySelectorAll('.btn-primary').forEach(injectSpans);
+    scanAll();
 
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((m) => {
-        m.addedNodes.forEach((node) => {
-          if (node instanceof HTMLElement) {
-            if (node.matches?.('.btn-primary')) injectSpans(node);
-            node.querySelectorAll?.('.btn-primary').forEach(injectSpans);
-          }
-        });
-      });
+    const observer = new MutationObserver(() => {
+      scanAll();
     });
 
     observer.observe(document.body, { childList: true, subtree: true });

@@ -18,7 +18,7 @@ export const BookingCTA: React.FC = () => {
           {t('hero.subtitle')}
         </p>
         <Link href="/auth">
-          <button className="btn btn-primary text-[11px]">
+          <button className="btn btn-white text-[11px]">
             {t('hero.cta')}
           </button>
         </Link>

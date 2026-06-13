@@ -167,6 +167,67 @@ h1, h2, h3 {
               0 0 200px var(--color-verdigris);
 }
 
+.btn-white {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem 2.5rem;
+  background: var(--color-white);
+  color: var(--color-black);
+}
+
+.btn-white:hover {
+  background: var(--color-verdigris);
+  color: var(--color-white);
+  box-shadow: 0 0 5px var(--color-verdigris),
+              0 0 25px var(--color-verdigris),
+              0 0 50px var(--color-verdigris),
+              0 0 200px var(--color-verdigris);
+}
+
+.btn-white .neon-span {
+  position: absolute;
+  display: block;
+}
+
+.btn-white .neon-span:nth-child(1) {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-verdigris));
+  animation: neon-animate1 1s linear infinite;
+}
+
+.btn-white .neon-span:nth-child(2) {
+  top: -100%;
+  right: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(180deg, transparent, var(--color-verdigris));
+  animation: neon-animate2 1s linear infinite;
+  animation-delay: 0.25s;
+}
+
+.btn-white .neon-span:nth-child(3) {
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(270deg, transparent, var(--color-verdigris));
+  animation: neon-animate3 1s linear infinite;
+  animation-delay: 0.50s;
+}
+
+.btn-white .neon-span:nth-child(4) {
+  bottom: -100%;
+  left: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(360deg, transparent, var(--color-verdigris));
+  animation: neon-animate4 1s linear infinite;
+  animation-delay: 0.75s;
+}
+
 .btn-secondary {
   padding: 1rem 2.5rem;
   background: transparent;
