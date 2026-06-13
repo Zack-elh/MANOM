@@ -78,11 +78,6 @@ export const Services: React.FC = () => {
                 <div key={service.id} className="shrink-0 bg-white overflow-hidden shadow-lg flex flex-col" style={{ width: ITEM_WIDTH, height: 480 }}>
                   <div className="relative h-[200px] overflow-hidden">
                     <img src={image} alt={i18n ? t(i18n.title) : service.title} className="w-full h-full object-cover" />
-                    <div className="absolute top-4 right-4">
-                      <span className="bg-white/90 backdrop-blur-sm text-black text-xs font-semibold px-3 py-1.5" style={{ fontFamily: 'var(--font-ui)' }}>
-                        {service.duration} {t('common.min')}
-                      </span>
-                    </div>
                   </div>
 
                   <div className="p-6 flex flex-col flex-1">
