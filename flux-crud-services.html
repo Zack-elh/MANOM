@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANOM - Flux CRUD Services</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; padding: 2rem; }
+    h1 { text-align: center; font-size: 2rem; margin-bottom: 0.5rem; color: #3c6057; }
+    .subtitle { text-align: center; color: #8a8a8a; margin-bottom: 3rem; font-size: 0.875rem; }
+    .section { margin-bottom: 4rem; }
+    .section h2 { font-size: 1.25rem; color: #3c6057; margin-bottom: 1rem; border-bottom: 1px solid rgba(60,96,87,0.3); padding-bottom: 0.5rem; }
+    .mermaid { background: #fafafa; padding: 2rem; border-radius: 4px; overflow-x: auto; }
+    .mermaid svg { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>MANOM BarberShop</h1>
+  <p class="subtitle">Flux CRUD Services — Verification du Role Admin</p>
+
+  <!-- MIDDLEWARE COMMUN -->
+  <div class="section">
+    <h2>Middleware — Verification du role admin (commun a toutes les operations)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant Admin as Admin
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(middleware.php)
+    participant DB as MySQL<br/>(users, sessions)
+
+    Admin->>FE: Effectuer operation CRUD
+    FE->>FE: authFetch()<br/>Ajouter header Authorization
+
+    FE->>API: Requete API<br/>Headers: Authorization: Bearer base64(42:email:hmac)
+
+    API->>API: 1. set_cors_headers()<br/>2. init_session()
+    API->>API: 3. check_rate_limit('admin_services')
+
+    API->>API: 4. require_admin()
+
+    alt Session PHP valide
+        API->>API: Verifier $_SESSION['user_id']
+        API-->>API: User ID = 42
+    else Token Bearer
+        API->>API: Base64 decode → [42, email, hash]
+        API->>API: hash_hmac('sha256', '42:email', secret)
+        API->>API: hash_equals(expected, hash)
+    end
+
+    API->>DB: SELECT id, name, email, role<br/>FROM users WHERE id=42<br/>AND email='admin@manom.com'
+    DB-->>API: {id:42, role:'admin'}
+
+    alt role !== 'admin'
+        API-->>FE: 403 {error: "Admin access required"}
+        FE-->>Admin: Refuse — acces interdit
+    else role === 'admin'
+        API-->>API: Autorisation OK<br/>Continuer le traitement
+    end
+    </div>
+  </div>
+
+  <!-- CREATE -->
+  <div class="section">
+    <h2>1. CREATE — Creer un service</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Admin
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(services.php)
+    participant DB as MySQL<br/>(services)
+
+    Admin->>FE: Cliquer "Ajouter un service"
+    FE-->>Admin: Afficher formulaire<br/>(titre, description, duree, prix)
+
+    Admin->>FE: Remplir et soumettre<br/>Titre: "Goutte a Goutte"<br/>Description: "Soin du cuir chevelu"<br/>Duree: 30min<br/>Prix: 30 MAD
+
+    FE->>FE: Validation cote client<br/>(champs non vides)
+
+    FE->>API: POST /api/admin/services.php<br/>Headers: Authorization: Bearer token<br/>Body: {<br/>titre: "Goutte a Goutte",<br/>description: "Soin du cuir chevelu",<br/>duree: 30,<br/>prix: 30<br/>}
+
+    API->>API: Middleware:<br/>require_admin() → OK
+
+    API->>API: Verifier champs requis<br/>['titre', 'duree', 'prix']
+
+    API->>API: sanitize_input(titre)<br/>htmlspecialchars + trim
+
+    API->>API: Valider duree<br/>(5 <= duree <= 480)
+    API->>API: Valider prix<br/>(prix >= 0)
+
+    API->>DB: INSERT INTO services<br/>(titre, description, duree, prix)<br/>VALUES ("Goutte a Goutte",<br/>"Soin du cuir chevelu", 30, 30.00)
+    DB-->>API: Last Insert ID = 7
+
+    API-->>FE: 201 Created<br/>{message: "Service cree", id: 7}
+    FE->>FE: Rafraichir liste des services
+    FE-->>Admin: Service ajoute avec succes
+    </div>
+  </div>
+
+  <!-- READ -->
+  <div class="section">
+    <h2>2. READ — Lire les services</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Admin
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(services.php)
+    participant DB as MySQL<br/>(services)
+
+    Admin->>FE: Naviguer vers /admin/services
+
+    FE->>API: GET /api/admin/services.php<br/>Headers: Authorization: Bearer token
+
+    API->>API: Middleware:<br/>require_admin() → OK
+
+    API->>DB: SELECT * FROM services<br/>ORDER BY id ASC
+    DB-->>API: [{id:1, titre:"Signature Haircut",<br/>duree:45, prix:45.00, actif:1},<br/>{id:2, titre:"Royal Beard Sculpt",<br/>duree:30, prix:35.00, actif:1},<br/>...{id:7, titre:"Goutte a Goutte",<br/>duree:30, prix:30.00, actif:1}]
+
+    API-->>FE: 200 OK<br/>{services: [...7 services]}
+
+    FE-->>Admin: Afficher tableau des services<br/>| ID | Titre | Duree | Prix | Actif |<br/>| 1 | Signature Haircut | 45min | 45 MAD | Oui |<br/>| 2 | Royal Beard Sculpt | 30min | 35 MAD | Oui |<br/>| ... | ... | ... | ... | ... |
+    </div>
+  </div>
+
+  <!-- UPDATE -->
+  <div class="section">
+    <h2>3. UPDATE — Modifier un service</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Admin
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(services.php)
+    participant DB as MySQL<br/>(services)
+
+    Admin->>FE: Cliquer "Modifier" sur un service
+    FE-->>Admin: Afficher formulaire预rempli<br/>(titre actuel, duree, prix)
+
+    Admin->>FE: Modifier le prix<br/>35 → 40 MAD
+
+    FE->>API: PUT /api/admin/services.php<br/>Headers: Authorization: Bearer token<br/>Body: {id: 2, prix: 40}
+
+    API->>API: Middleware:<br/>require_admin() → OK
+
+    API->>API: Verifier id present dans body
+
+    API->>API: Construire requete dynamique<br/>SET prix = ?<br/>( champs modifies uniquement )
+
+    API->>API: sanitize_input(valeurs)
+
+    API->>DB: UPDATE services<br/>SET prix = 40.00<br/>WHERE id = 2
+    DB-->>API: 1 row affected
+
+    API-->>FE: 200 OK<br/>{message: "Service mis a jour"}
+    FE->>FE: Rafraichir liste
+    FE-->>Admin: Service modifie avec succes
+    </div>
+  </div>
+
+  <!-- TOGGLE ACTIVE -->
+  <div class="section">
+    <h2>4. TOGGLE — Activer / Desactiver un service</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Admin
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(services.php)
+    participant DB as MySQL<br/>(services)
+
+    Admin->>FE: Cliquer bouton "Actif" / "Inactif"
+
+    FE->>API: PUT /api/admin/services.php<br/>Headers: Authorization: Bearer token<br/>Body: {id: 2, actif: 0}
+
+    API->>API: Middleware:<br/>require_admin() → OK
+
+    API->>DB: UPDATE services<br/>SET actif = 0<br/>WHERE id = 2
+    DB-->>API: 1 row affected
+
+    API-->>FE: 200 OK<br/>{message: "Service mis a jour"}
+    FE->>FE: Changer badge:<br/>"Actif" → "Inactif"
+    FE-->>Admin: Service desactive
+
+    Note over Admin,DB: Le service n'apparait plus<br/>sur la page d'accueil<br/>(filtrage par actif=1)
+    </div>
+  </div>
+
+  <!-- DELETE -->
+  <div class="section">
+    <h2>5. DELETE — Supprimer un service</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Admin
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(services.php)
+    participant DB as MySQL<br/>(services, bookings)
+
+    Admin->>FE: Cliquer "Supprimer" sur un service
+    FE-->>Admin: Afficher confirmation<br/>"Etes-vous sur?"
+
+    Admin->>FE: Confirmer la suppression
+
+    FE->>API: DELETE /api/admin/services.php?id=7<br/>Headers: Authorization: Bearer token
+
+    API->>API: Middleware:<br/>require_admin() → OK
+
+    API->>API: Verifier id dans URL<br/>(GET parametre)
+
+    API->>DB: DELETE FROM services WHERE id = 7
+
+    Note over DB: CASCADE sur bookings<br/>→ les reservations liees<br/>supprimees automatiquement
+    DB-->>API: 1 row affected
+
+    API-->>FE: 200 OK<br/>{message: "Service supprime"}
+    FE->>FE: Supprimer de la liste
+    FE-->>Admin: Service supprime avec succes
+    </div>
+  </div>
+
+  <!-- VUE D'ENSEMBLE -->
+  <div class="section">
+    <h2>Vue d'ensemble — Cycle CRUD</h2>
+    <div class="mermaid">
+flowchart TD
+    Start["Admin ouvre<br/>/admin/services"]
+
+    subgraph Auth["Verification Auth + Role"]
+        A1["Verifier token / session"]
+        A2["SELECT role FROM users"]
+        A3{"role === 'admin'?"}
+        A1 --> A2 --> A3
+    end
+
+    subgraph CRUD["Operations CRUD"]
+        C["CREATE<br/>POST /api/admin/services.php<br/>INSERT INTO services"]
+        R["READ<br/>GET /api/admin/services.php<br/>SELECT * FROM services"]
+        U["UPDATE<br/>PUT /api/admin/services.php<br/>UPDATE services SET ..."]
+        T["TOGGLE<br/>PUT /api/admin/services.php<br/>UPDATE services SET actif=0"]
+        D["DELETE<br/>DELETE /api/admin/services.php?id=X<br/>DELETE FROM services"]
+    end
+
+    Start --> Auth
+    A3 -->|"Non"| Deny["403 Refuse"]
+    A3 -->|"Oui"| CRUD
+    C --> R
+    R --> U
+    R --> T
+    R --> D
+
+    style Auth fill:#2d4a3f,color:#fafafa
+    style Deny fill:#8b0000,color:#fafafa
+    style C fill:#3c6057,color:#fafafa
+    style R fill:#3c6057,color:#fafafa
+    style U fill:#3c6057,color:#fafafa
+    style T fill:#3c6057,color:#fafafa
+    style D fill:#3c6057,color:#fafafa
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      sequence: { useMaxWidth: true, mirrorActors: false, messageAlign: 'center' },
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+</body>
+</html>

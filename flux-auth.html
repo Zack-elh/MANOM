@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANOM - Flux d'Authentification</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; padding: 2rem; }
+    h1 { text-align: center; font-size: 2rem; margin-bottom: 0.5rem; color: #3c6057; }
+    .subtitle { text-align: center; color: #8a8a8a; margin-bottom: 3rem; font-size: 0.875rem; }
+    .section { margin-bottom: 4rem; }
+    .section h2 { font-size: 1.25rem; color: #3c6057; margin-bottom: 1rem; border-bottom: 1px solid rgba(60,96,87,0.3); padding-bottom: 0.5rem; }
+    .mermaid { background: #fafafa; padding: 2rem; border-radius: 4px; overflow-x: auto; }
+    .mermaid svg { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>MANOM BarberShop</h1>
+  <p class="subtitle">Flux d'Authentification Complet</p>
+
+  <div class="section">
+    <h2>1. Inscription (Sign Up)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Utilisateur
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(signup.php)
+    participant DB as MySQL<br/>(table users)
+
+    Utilisateur->>FE: Ouvrir /auth → onglet Inscription
+    FE-->>Utilisateur: Afficher formulaire<br/>(nom, email, mot de passe, confirmer)
+
+    Utilisateur->>FE: Remplir et soumettre le formulaire
+    FE->>FE: Validation cote client<br/>(champs vides, mot de passe different)
+
+    FE->>API: POST /api/auth/signup.php<br/>Body: {name, email, password}
+
+    API->>API: check_rate_limit('signup')
+    API->>API: validate_required(['name','email','password'])
+    API->>API: validate_email(email)
+    API->>API: password_hash(password, BCRYPT)
+
+    API->>DB: SELECT id FROM users WHERE email = ?
+    DB-->>API: NULL (email disponible)
+
+    API->>DB: INSERT INTO users (name, email, password, role)<br/>VALUES (?, ?, hash, 'client')
+    DB-->>API: Last Insert ID = 42
+
+    API->>API: Generer token HMAC:<br/>base64(42:email:hmac_sha256)
+
+    API->>DB: INSERT INTO sessions (id, user_id, ip_address, user_agent, payload, last_activity)
+    DB-->>API: OK
+
+    API-->>FE: 201 Created<br/>{token, user: {id:42, name, email, role:'client'}}
+    FE->>FE: localStorage.setItem('manom_auth', JSON.stringify({token, user}))
+    FE-->>Utilisateur: Rediriger vers /dashboard
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2. Connexion (Sign In)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Utilisateur
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(login.php)
+    participant DB as MySQL<br/>(tables users, sessions)
+
+    Utilisateur->>FE: Ouvrir /auth → onglet Connexion
+    FE-->>Utilisateur: Afficher formulaire<br/>(email, mot de passe)
+
+    Utilisateur->>FE: Remplir et soumettre le formulaire
+    FE->>API: POST /api/auth/login.php<br/>Body: {email, password}
+
+    API->>API: check_rate_limit('login')
+    API->>API: validate_required(['email','password'])
+
+    API->>DB: SELECT id, name, email, password, role<br/>FROM users WHERE email = ?
+    DB-->>API: {id:42, name:'Ahmed', email:'a@b.com',<br/>password:'$2y$10$...', role:'client'}
+
+    API->>API: password_verify(password, hash)
+    alt Mot de passe incorrect
+        API-->>FE: 401 {error: 'Email ou mot de passe incorrect'}
+        FE-->>Utilisateur: Afficher erreur
+    else Mot de passe correct
+        API->>API: Generer token HMAC:<br/>base64(42:email:hmac_sha256('42:email'))
+
+        API->>DB: INSERT INTO sessions<br/>(id, user_id, ip_address, user_agent, payload, last_activity)
+        DB-->>API: OK
+
+        API-->>FE: 200 OK<br/>{token, user: {id:42, name, email, role}}
+        FE->>FE: localStorage.setItem('manom_auth', JSON.stringify({token, user}))
+        FE-->>Utilisateur: Rediriger vers /dashboard ou /admin
+    end
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. Authentification Requete (Token Verification)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(middleware.php)
+    participant DB as MySQL<br/>(tables users, sessions)
+
+    FE->>API: GET /api/admin/stats.php<br/>Header: Authorization: Bearer base64(42:email:hmac)
+
+    API->>API: init_session()
+    API->>API: Verifier Session PHP<br/>$_SESSION['user_id']
+
+    alt Session non valide
+        API->>API: Parser header Authorization
+        API->>API: Base64 decode → [userId, email, hash]
+        API->>API: hash_hmac('sha256', '42:email', secret)
+        API->>API: hash_equals(expected, hash)
+
+        alt Token invalide
+            API-->>FE: 401 {error: 'Authentication required'}
+        else Token valide
+            API->>DB: SELECT id, name, email, role<br/>FROM users WHERE id=42 AND email='a@b.com'
+            DB-->>API: {id:42, name, email, role:'admin'}
+
+            alt Role insuffisant
+                API->>API: require_admin() → role !== 'admin'
+                API-->>FE: 403 {error: 'Admin access required'}
+            else Autorisation OK
+                API->>API: Continuer le traitement
+                API-->>FE: 200 OK (donnees)
+            end
+        end
+    end
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. Mot de Passe Oublie (Forgot Password)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Utilisateur
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(forgot-password.php)
+    participant DB as MySQL<br/>(tables users, password_resets)
+
+    Utilisateur->>FE: Cliquer "Mot de passe oublie?"
+    FE-->>Utilisateur: Afficher formulaire email
+
+    Utilisateur->>FE: Entrer email et soumettre
+    FE->>API: POST /api/auth/forgot-password.php<br/>Body: {email: 'a@b.com'}
+
+    API->>API: check_rate_limit('forgot_password')
+    API->>API: validate_email(email)
+
+    API->>DB: SELECT id, name FROM users WHERE email = ?
+    DB-->>API: {id:42, name:'Ahmed'}
+
+    API->>DB: UPDATE password_resets SET used=1<br/>WHERE user_id=42 AND used=0
+    DB-->>API: OK
+
+    API->>API: Generer token: bin2hex(random_bytes(32))
+    API->>API: Calculer expiration: now + 1 heure
+
+    API->>DB: INSERT INTO password_resets<br/>(user_id, token, expires_at)<br/>VALUES (42, 'a1b2c3...', NOW()+1h)
+    DB-->>API: OK
+
+    API-->>FE: 200 OK<br/>{message: 'Lien genere', token: 'a1b2c3...', expires_in: 3600}
+    FE-->>Utilisateur: Afficher le token (mode dev)
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>5. Reinitialisation du Mot de Passe (Reset Password)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Utilisateur
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(reset-password.php)
+    participant DB as MySQL<br/>(tables users, password_resets)
+
+    Utilisateur->>FE: Entrer token + nouveau mot de passe
+    FE->>API: POST /api/auth/reset-password.php<br/>Body: {token, password}
+
+    API->>API: check_rate_limit('reset_password')
+    API->>API: validate_required(['token','password'])
+
+    API->>DB: SELECT id, user_id, expires_at, used<br/>FROM password_resets WHERE token = ?
+    DB-->>API: {id:7, user_id:42, expires_at:'...', used:0}
+
+    API->>API: Verifier expiration (expires_at > NOW())
+    API->>API: Verifier si deja utilise (used = 0)
+
+    alt Token expire ou utilise
+        API-->>FE: 400 {error: 'Token invalide ou expire'}
+    else Token valide
+        API->>API: password_hash(new_password, BCRYPT)
+
+        API->>DB: UPDATE users SET password = ? WHERE id = 42
+        DB-->>API: OK
+
+        API->>DB: UPDATE password_resets SET used=1 WHERE id=7
+        DB-->>API: OK
+
+        API->>DB: DELETE FROM sessions WHERE user_id = 42
+        DB-->>API: OK
+
+        API-->>FE: 200 OK<br/>{message: 'Mot de passe reinitialise'}
+        FE-->>Utilisateur: Rediriger vers /auth → Connexion
+    end
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      sequence: { useMaxWidth: true, mirrorActors: false, messageAlign: 'center' }
+    });
+  </script>
+</body>
+</html>

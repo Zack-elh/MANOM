@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANOM - Diagrammes UML</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; padding: 2rem; }
+    h1 { text-align: center; font-size: 2rem; margin-bottom: 0.5rem; color: #3c6057; }
+    .subtitle { text-align: center; color: #8a8a8a; margin-bottom: 3rem; font-size: 0.875rem; }
+    .section { margin-bottom: 4rem; }
+    .section h2 { font-size: 1.25rem; color: #3c6057; margin-bottom: 1rem; border-bottom: 1px solid rgba(60,96,87,0.3); padding-bottom: 0.5rem; }
+    .mermaid { background: #fafafa; padding: 2rem; border-radius: 4px; overflow-x: auto; }
+    .mermaid svg { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>MANOM BarberShop</h1>
+  <p class="subtitle">Architecture du Systeme & Diagrammes UML</p>
+
+  <div class="section">
+    <h2>1. Diagramme de Classes - Modeles de Donnees</h2>
+    <div class="mermaid">
+classDiagram
+    class User {
+        +int id
+        +string nom
+        +string email
+        +string mot_de_passe
+        +enum role
+        +string telephone
+        +datetime date_creation
+        +datetime date_modification
+    }
+
+    class Service {
+        +int id
+        +string titre
+        +string description
+        +int duree
+        +decimal prix
+        +tinyint actif
+        +datetime date_creation
+        +datetime date_modification
+    }
+
+    class Barber {
+        +int id
+        +string nom
+        +string specialite
+        +string image
+        +tinyint actif
+        +datetime date_creation
+        +datetime date_modification
+    }
+
+    class BarberAvailability {
+        +int id
+        +int barbier_id
+        +tinyint jour_semaine
+        +time heure_debut
+        +time heure_fin
+        +tinyint actif
+    }
+
+    class Booking {
+        +int id
+        +string code_reference
+        +int utilisateur_id
+        +int service_id
+        +int barbier_id
+        +date date_rdv
+        +time heure_rdv
+        +enum statut
+        +text notes
+        +datetime date_creation
+        +datetime date_modification
+    }
+
+    class BookingAudit {
+        +int id
+        +int reservation_id
+        +string action
+        +string ancien_statut
+        +string nouveau_statut
+        +int effectue_par
+        +text notes
+        +datetime date_creation
+    }
+
+    class PasswordReset {
+        +int id
+        +int utilisateur_id
+        +string token
+        +datetime expiration
+        +tinyint utilise
+        +datetime date_creation
+    }
+
+    class Session {
+        +string id
+        +int utilisateur_id
+        +string adresse_ip
+        +text agent_utilisateur
+        +text donnees
+        +int derniere_activite
+    }
+
+    class RateLimit {
+        +int id
+        +string adresse_ip
+        +string point_entree
+        +int tentatives
+        +datetime premiere_tentative
+        +datetime derniere_tentative
+    }
+
+    User "1" --> "*" Booking : effectue
+    User "1" --> "*" BookingAudit : realise
+    User "1" --> "*" PasswordReset : demande
+    User "1" --> "0..1" Session : possede
+    Service "1" --> "*" Booking : reserve_comme
+    Barber "1" --> "*" Booking : assigne_a
+    Barber "1" --> "*" BarberAvailability : possede
+    Booking "1" --> "*" BookingAudit : genere
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2. Diagramme de Composants - Architecture du Systeme</h2>
+    <div class="mermaid">
+graph TB
+    subgraph Frontend["Frontend - Next.js 16"]
+        direction TB
+        FE_Landing["Page d'Accueil<br/>Hero | A propos | Services | Equipe | Galerie | Contact"]
+        FE_Auth["Page d'Authentification<br/>Connexion | Inscription | Mot de passe oublie"]
+        FE_Booking["Page de Reservation<br/>Choisir Service → Barbier → Date → Heure → Confirmer"]
+        FE_Dashboard["Tableau de Bord Client<br/>Reservations | Profil"]
+        FE_Admin["Tableau de Bord Admin<br/>Apercu | Reservations | Services | Barbers | Clients"]
+    end
+
+    subgraph API["Couche API - PHP"]
+        direction TB
+        API_Public["Points d'Entree Publics<br/>services.php | barbers.php | slots.php"]
+        API_Auth["Points d'Entree Auth<br/>inscription | connexion | deconnexion | moi | mot-de-passe-oublie | reinitialiser"]
+        API_Booking["Points d'Entree Reservation<br/>creer | annuler | mes-reservations | creneaux"]
+        API_Admin["Points d'Entree Admin<br/>stats | reservations | services | barbers | clients"]
+    end
+
+    subgraph MW["Middleware"]
+        direction TB
+        CORS["En-tetes CORS"]
+        RateLimit["Limitation de Debit"]
+        AuthGuard["Garde d'Authentification<br/>Session + Token"]
+        CSRF["Protection CSRF"]
+    end
+
+    subgraph DB["Base de Donnees - MySQL/XAMPP"]
+        Users[(Utilisateurs)]
+        Services[(Services)]
+        Barbers[(Barbiers)]
+        Availability[(Disponibilites Barbier)]
+        Bookings[(Reservations)]
+        Audit[(Journal d'Audit)]
+        Resets[(Reinitialisation MDP)]
+        Sessions[(Sessions)]
+        RateLimits[(Limites de Debit)]
+    end
+
+    FE_Landing --> API_Public
+    FE_Auth --> API_Auth
+    FE_Booking --> API_Booking
+    FE_Dashboard --> API_Booking
+    FE_Dashboard --> API_Auth
+    FE_Admin --> API_Admin
+
+    API_Public --> DB
+    API_Auth --> DB
+    API_Booking --> DB
+    API_Admin --> DB
+
+    API_Auth --> MW
+    API_Booking --> MW
+    API_Admin --> MW
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. Diagramme de Sequence - Flux de Reservation</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Client
+    participant FE as Frontend
+    participant API as API (PHP)
+    participant DB as Base de Donnees
+
+    Client->>FE: Selectionner service, barbier, date
+    FE->>API: GET /api/bookings/slots.php?barber_id=X&date=Y&service_id=Z
+    API->>DB: Rechercher les creneaux disponibles
+    DB-->>API: Retourner les horaires disponibles
+    API-->>FE: Retourner slots[]
+    FE-->>Client: Afficher les creneaux disponibles
+
+    Client->>FE: Selectionner l'heure et confirmer
+    FE->>API: POST /api/bookings/create.php
+    API->>API: Valider les donnees et l'authentification
+    API->>DB: Verifier la disponibilite du barbier
+    API->>DB: BEGIN TRANSACTION
+    API->>DB: Verrouiller les reservations (FOR UPDATE)
+    API->>DB: Verifier les conflits
+    API->>DB: INSERT reservation
+    API->>DB: INSERT journal d'audit
+    API->>DB: COMMIT
+    API-->>FE: Retourner la confirmation
+    FE-->>Client: Afficher succes + code reference
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. Diagramme de Sequence - Flux d'Authentification</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Utilisateur
+    participant FE as Frontend
+    participant API as API (PHP)
+    participant DB as Base de Donnees
+
+    Note over Utilisateur,DB: Inscription
+    Utilisateur->>FE: Remplir le formulaire d'inscription
+    FE->>API: POST /api/auth/signup.php
+    API->>API: Valider et hacher le mot de passe
+    API->>DB: INSERT utilisateur
+    API-->>FE: Retourner token + utilisateur
+    FE-->>FE: Stocker dans localStorage
+
+    Note over Utilisateur,DB: Connexion
+    Utilisateur->>FE: Entrer les identifiants
+    FE->>API: POST /api/auth/login.php
+    API->>DB: SELECT utilisateur par email
+    API->>API: Verifier le mot de passe (bcrypt)
+    API->>DB: CREER session
+    API-->>FE: Retourner token + utilisateur
+    FE-->>FE: Stocker dans localStorage
+
+    Note over Utilisateur,DB: Mot de Passe Oublie
+    Utilisateur->>FE: Entrer l'email
+    FE->>API: POST /api/auth/forgot-password.php
+    API->>DB: SELECT utilisateur par email
+    API->>DB: INSERT token de reinitialisation
+    API-->>FE: Retourner token (mode dev)
+    FE-->>FE: Afficher le token pour reinitialisation
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>5. Diagramme Relationnel d'Entites</h2>
+    <div class="mermaid">
+erDiagram
+    UTILISATEURS {
+        int id PK
+        varchar nom
+        varchar email UK
+        varchar mot_de_passe
+        enum role
+        varchar telephone
+        timestamp date_creation
+        timestamp date_modification
+    }
+
+    SERVICES {
+        int id PK
+        varchar titre
+        text description
+        int duree
+        decimal prix
+        tinyint actif
+        timestamp date_creation
+        timestamp date_modification
+    }
+
+    BARBERS {
+        int id PK
+        varchar nom
+        varchar specialite
+        varchar image
+        tinyint actif
+        timestamp date_creation
+        timestamp date_modification
+    }
+
+    DISPONIBILITES {
+        int id PK
+        int barbier_id FK
+        tinyint jour_semaine
+        time heure_debut
+        time heure_fin
+        tinyint actif
+    }
+
+    RESERVATIONS {
+        int id PK
+        varchar code_reference UK
+        int utilisateur_id FK
+        int service_id FK
+        int barbier_id FK
+        date date_rdv
+        time heure_rdv
+        enum statut
+        text notes
+        timestamp date_creation
+        timestamp date_modification
+    }
+
+    JOURNAL_AUDIT {
+        int id PK
+        int reservation_id FK
+        varchar action
+        varchar ancien_statut
+        varchar nouveau_statut
+        int effectue_par FK
+        text notes
+        timestamp date_creation
+    }
+
+    REINITIALISATION_MDP {
+        int id PK
+        int utilisateur_id FK
+        varchar token UK
+        datetime expiration
+        tinyint utilise
+        timestamp date_creation
+    }
+
+    SESSIONS {
+        varchar id PK
+        int utilisateur_id FK
+        varchar adresse_ip
+        text agent_utilisateur
+        text donnees
+        int derniere_activite
+    }
+
+    LIMITES_DEBIT {
+        int id PK
+        varchar adresse_ip
+        varchar point_entree
+        int tentatives
+        timestamp premiere_tentative
+        timestamp derniere_tentative
+    }
+
+    UTILISATEURS ||--o{ RESERVATIONS : "effectue"
+    UTILISATEURS ||--o{ JOURNAL_AUDIT : "realise"
+    UTILISATEURS ||--o{ REINITIALISATION_MDP : "demande"
+    UTILISATEURS ||--o{ SESSIONS : "possede"
+    SERVICES ||--o{ RESERVATIONS : "reserve_comme"
+    BARBERS ||--o{ RESERVATIONS : "assigne_a"
+    BARBERS ||--o{ DISPONIBILITES : "possede"
+    RESERVATIONS ||--o{ JOURNAL_AUDIT : "genere"
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>6. Flux de Navigation des Pages</h2>
+    <div class="mermaid">
+flowchart TD
+    Home["/ (Page d'Accueil)"]
+    Auth["/auth (Connexion / Inscription)"]
+    Forgot["/auth?view=mot-de-passe-oublie"]
+    Reset["/auth?view=reinitialiser-mot-de-passe&token=X"]
+    Dashboard["/dashboard (Client)"]
+    DBookings["/dashboard/reservations"]
+    DProfile["/dashboard/profil"]
+    Admin["/admin (Apercu Admin)"]
+    ABookings["/admin/reservations"]
+    AServices["/admin/services"]
+    ABarbers["/admin/barbers"]
+    AClients["/admin/clients"]
+    Booking["/booking (Creer une Reservation)"]
+
+    Home -->|"Reserver Maintenant"| Auth
+    Home -->|"Reserver avec Barbier"| Auth
+    Auth -->|"Inscription / Connexion"| Dashboard
+    Auth -->|"Mot de passe oublie"| Forgot
+    Forgot -->|"Email envoye"| Reset
+    Reset -->|"Reinitialiser mot de passe"| Auth
+    Dashboard --> DBookings
+    Dashboard --> DProfile
+    Dashboard -->|"Creer Reservation"| Booking
+    Dashboard -->|"Vue Admin"| Admin
+    Admin --> ABookings
+    Admin --> AServices
+    Admin --> ABarbers
+    Admin --> AClients
+    Admin -->|"Vue Client"| Dashboard
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true },
+      sequence: { useMaxWidth: true, mirrorActors: false },
+      er: { useMaxWidth: true }
+    });
+  </script>
+</body>
+</html>

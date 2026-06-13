@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANOM - Flux de Reservation</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; padding: 2rem; }
+    h1 { text-align: center; font-size: 2rem; margin-bottom: 0.5rem; color: #3c6057; }
+    .subtitle { text-align: center; color: #8a8a8a; margin-bottom: 3rem; font-size: 0.875rem; }
+    .section { margin-bottom: 4rem; }
+    .section h2 { font-size: 1.25rem; color: #3c6057; margin-bottom: 1rem; border-bottom: 1px solid rgba(60,96,87,0.3); padding-bottom: 0.5rem; }
+    .mermaid { background: #fafafa; padding: 2rem; border-radius: 4px; overflow-x: auto; }
+    .mermaid svg { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>MANOM BarberShop</h1>
+  <p class="subtitle">Flux de Reservation — 4 Etapes</p>
+
+  <!-- ETAPE 1 -->
+  <div class="section">
+    <h2>Etape 1 : Verification de la disponibilite du barbier</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Client
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(slots.php)
+    participant DB as MySQL<br/>(barber_availability, bookings, services)
+
+    Client->>FE: Selectionne barbier + date + service
+    FE->>API: GET /api/bookings/slots.php<br/>?barber_id=2&date=2026-06-15&service_id=1
+
+    API->>API: Valider parametres<br/>(barber_id, date, service_id)
+
+    API->>DB: SELECT duree FROM services<br/>WHERE id=1 AND active=1
+    DB-->>API: duree = 45 minutes
+
+    API->>DB: SELECT jour_semaine FROM<br/>barber_availability<br/>WHERE barbier_id=2<br/>AND jour_semaine = 1<br/>AND actif=1
+    DB-->>API: Barbier disponible le lundi
+
+    API->>DB: SELECT heure_debut, heure_fin<br/>FROM barber_availability<br/>WHERE barbier_id=2 AND jour_semaine=1
+    DB-->>API: 09:00 → 20:00
+
+    API->>DB: SELECT heure_rdv, s.duree<br/>FROM bookings b<br/>JOIN services s ON b.service_id=s.id<br/>WHERE b.barbier_id=2<br/>AND b.date_rdv='2026-06-15'<br/>AND b.statut IN ('pending','confirmed')
+    DB-->>API: [09:00-09:45, 10:30-11:15, 14:00-14:45]
+
+    API->>API: Generer creneaux libres<br/>de 09:00 a 20:00<br/>en retirant les occupes
+
+    API-->>FE: {creneaux: ["09:00","09:45",<br/>"10:15","11:00","11:45",<br/>"12:30","13:15","14:00",<br/>"15:30","16:15","17:00"]}
+
+    FE-->>Client: Afficher les creneaux disponibles
+    </div>
+  </div>
+
+  <!-- ETAPE 2 -->
+  <div class="section">
+    <h2>Etape 2 : Selection du creneau et validation</h2>
+    <div class="mermaid">
+sequenceDiagram
+    actor Client
+    participant FE as Frontend<br/>(Next.js)
+
+    Client->>FE: Ouvre /booking
+
+    FE->>FE: GET /api/admin/services.php<br/>(charger les services)
+    FE-->>Client: Afficher liste des services
+
+    Client->>FE: Selectionne service<br/>(ex: Signature Haircut — 45min, 45 MAD)
+
+    FE->>FE: GET /api/admin/barbers.php<br/>(charger les barbiers)
+    FE-->>Client: Afficher les barbiers
+
+    Client->>FE: Selectionne barbier<br/>(ex: Andrew)
+
+    FE->>FE: GET /api/bookings/slots.php<br/>(charger les creneaux)
+    FE-->>Client: Afficher calendrier + creneaux
+
+    Client->>FE: Selectionne date<br/>(ex: 15 Juin 2026)
+
+    FE->>FE: Rafraichir les creneaux<br/>pour cette date
+
+    Client->>FE: Selectionne heure<br/>(ex: 14:00)
+
+    FE-->>Client: Resume:<br/>Service: Signature Haircut<br/>Barbier: Andrew<br/>Date: 15/06/2026<br/>Heure: 14:00<br/>Duree: 45min<br/>Prix: 45 MAD
+
+    Client->>FE: Cliquer "Confirmer la reservation"
+    </div>
+  </div>
+
+  <!-- ETAPE 3 -->
+  <div class="section">
+    <h2>Etape 3 : Verification des conflits (Transaction)</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(create.php)
+    participant DB as MySQL<br/>(transactions)
+
+    FE->>API: POST /api/bookings/create.php<br/>Headers: Authorization: Bearer token<br/>Body: {service_id:1, barbier_id:2,<br/>date_rdv:'2026-06-15',<br/>heure_rdv:'14:00'}
+
+    API->>API: 1. Verifier authentification<br/>(session ou token HMAC)
+
+    API->>DB: SELECT id, duree, prix<br/>FROM services WHERE id=1<br/>AND actif=1
+    DB-->>API: Service OK (45min, 45 MAD)
+
+    API->>DB: SELECT id FROM barbers<br/>WHERE id=2 AND actif=1
+    DB-->>API: Barbier OK
+
+    API->>DB: SELECT id FROM<br/>barber_availability<br/>WHERE barbier_id=2<br/>AND jour_semaine=1<br/>AND '14:00' BETWEEN<br/>heure_debut AND heure_fin
+    DB-->>API: Disponible
+
+    API->>API: BEGIN TRANSACTION
+
+    API->>DB: SELECT id FROM bookings<br/>WHERE barbier_id=2<br/>AND date_rdv='2026-06-15'<br/>AND heure_rdv='14:00'<br/>AND statut IN ('pending','confirmed')<br/>FOR UPDATE
+    DB-->>API: Aucun conflit direct
+
+    API->>API: Calculer heure_fin =<br/>14:00 + 45min = 14:45
+
+    API->>DB: SELECT b.id FROM bookings b<br/>JOIN services s ON b.service_id=s.id<br/>WHERE b.barbier_id=2<br/>AND b.date_rdv='2026-06-15'<br/>AND b.statut IN ('pending','confirmed')<br/>AND b.heure_rdv < '14:45'<br/>AND ADDTIME(b.heure_rdv,<br/>SEC_TO_TIME(s.duree*60)) > '14:00'<br/>FOR UPDATE
+    DB-->>API: Aucun chevauchement
+
+    API-->>API: Verifications OK
+    </div>
+  </div>
+
+  <!-- ETAPE 4 -->
+  <div class="section">
+    <h2>Etape 4 : Insertion et confirmation</h2>
+    <div class="mermaid">
+sequenceDiagram
+    participant FE as Frontend<br/>(Next.js)
+    participant API as API PHP<br/>(create.php)
+    participant DB as MySQL<br/>(bookings, bookings_audit)
+
+    API->>API: Generer code reference<br/>MNM- + 6 chiffres<br/>(ex: MNM-004201)
+
+    API->>DB: INSERT INTO reservations<br/>(code_reference, utilisateur_id,<br/>service_id, barbier_id,<br/>date_rdv, heure_rdv,<br/>statut, notes)<br/>VALUES ('MNM-004201', 42,<br/>1, 2, '2026-06-15',<br/>'14:00:00', 'confirmed', NULL)
+    DB-->>API: Insertion ID = 87
+
+    API->>DB: INSERT INTO journal_audit<br/>(reservation_id, action,<br/>nouveau_statut, effectue_par)<br/>VALUES (87, 'created',<br/>'confirmed', 42)
+    DB-->>API: OK
+
+    API->>API: COMMIT TRANSACTION
+
+    API-->>FE: 201 Created<br/>{<br/>message: "Reservation creee",<br/>reservation: {<br/>id: 87,<br/>code_reference: "MNM-004201",<br/>service: "Signature Haircut",<br/>barbier_id: 2,<br/>date_rdv: "2026-06-15",<br/>heure_rdv: "14:00",<br/>statut: "confirmed",<br/>duree: 45,<br/>prix: 45.00<br/>}<br/>}
+
+    FE-->>Client: Afficher confirmation<br/>"Reservation confirmee!"<br/>Code: MNM-004201<br/>Service: Signature Haircut<br/>Barbier: Andrew<br/>15/06/2026 a 14:00<br/>45 MAD
+    </div>
+  </div>
+
+  <!-- VUE D'ENSEMBLE -->
+  <div class="section">
+    <h2>Vue d'ensemble — Les 4 etapes</h2>
+    <div class="mermaid">
+flowchart LR
+    E1["Etape 1<br/>Verifier<br/>Disponibilite"]
+    E2["Etape 2<br/>Selectionner<br/>Creneau"]
+    E3["Etape 3<br/>Verifier<br/>Conflits"]
+    E4["Etape 4<br/>Inserer et<br/>Confirmer"]
+
+    E1 -->|"Creneaux<br/>disponibles"| E2
+    E2 -->|"Confirmer"| E3
+    E3 -->|"Aucun<br/>conflit"| E4
+    E4 -->|"Reservation<br/>creee"| Done["Termine"]
+
+    style E1 fill:#3c6057,color:#fafafa
+    style E2 fill:#3c6057,color:#fafafa
+    style E3 fill:#3c6057,color:#fafafa
+    style E4 fill:#3c6057,color:#fafafa
+    style Done fill:#2d4a3f,color:#fafafa
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      sequence: { useMaxWidth: true, mirrorActors: false, messageAlign: 'center' },
+      flowchart: { useMaxWidth: true, htmlLabels: true }
+    });
+  </script>
+</body>
+</html>
