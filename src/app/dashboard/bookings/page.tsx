@@ -16,6 +16,8 @@ interface Booking {
   status: string;
   price: number;
   can_cancel: boolean;
+  is_late_cancel: boolean;
+  hours_until: number;
   multi_service_ids?: number[];
   multi_services?: { id: number; title: string; price: number; duration: number }[];
 }
@@ -126,8 +128,12 @@ const [cancellingId, setCancellingId] = useState<number | null>(null);
     setSaving(false);
   };
 
-  const handleCancel = async (bookingId: number) => {
-    if (!confirm(t('dashboard.cancelConfirm'))) return;
+  const handleCancel = async (bookingId: number, isLate: boolean) => {
+    if (isLate) {
+      if (!confirm('WARNING: This booking is less than 2 hours away. Cancelling now will add 2 strikes to your account. Are you sure?')) return;
+    } else {
+      if (!confirm(t('dashboard.cancelConfirm'))) return;
+    }
     setCancellingId(bookingId);
     try {
       const res = await authFetch('/api/bookings/cancel.php', {
@@ -135,8 +141,12 @@ const [cancellingId, setCancellingId] = useState<number | null>(null);
         body: JSON.stringify({ booking_id: bookingId }),
       });
       const data = await res.json();
-      if (res.ok) { fetchBookings(); }
-      else { alert(data.error || 'Failed to cancel'); }
+      if (res.ok) {
+        if (data.strike) {
+          alert('Booking cancelled. ' + data.strike_count + ' strike(s) added to your account (' + data.no_show_count + '/3 strikes).');
+        }
+        fetchBookings();
+      } else { alert(data.error || 'Failed to cancel'); }
     } catch { alert('Failed to cancel'); }
     setCancellingId(null);
   };
@@ -144,8 +154,9 @@ const [cancellingId, setCancellingId] = useState<number | null>(null);
   const now = new Date();
   const filtered = bookings.filter((b) => {
     const bookingDate = new Date(`${b.booking_date}T${b.booking_time}`);
-    if (filter === 'upcoming') return bookingDate >= now && b.status !== 'cancelled';
-    if (filter === 'past') return bookingDate < now || b.status === 'completed' || b.status === 'cancelled';
+    const isActive = ['pending', 'confirmed', 'in_progress', 'pending_approval'].includes(b.status);
+    if (filter === 'upcoming') return bookingDate >= now && isActive;
+    if (filter === 'past') return bookingDate < now || ['completed', 'cancelled', 'late_cancel', 'no_show'].includes(b.status);
     return true;
   });
 
@@ -155,9 +166,12 @@ const [cancellingId, setCancellingId] = useState<number | null>(null);
   const statusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bg-verdigris/10 text-verdigris';
-      case 'pending': return 'bg-amber-50 text-amber-700';
+      case 'in_progress': return 'bg-blue-50 text-blue-700';
+      case 'pending_approval': return 'bg-amber-50 text-amber-700';
       case 'completed': return 'bg-black/5 text-text-tertiary';
       case 'cancelled': return 'bg-red-50 text-red-600';
+      case 'late_cancel': return 'bg-orange-50 text-orange-700';
+      case 'no_show': return 'bg-red-50 text-red-700';
       default: return 'bg-black/5 text-text-tertiary';
     }
   };
@@ -272,14 +286,14 @@ const [cancellingId, setCancellingId] = useState<number | null>(null);
                       {formatTime(booking.booking_time)}
                     </span>
                   </div>
-                  {booking.status !== 'cancelled' && booking.status !== 'completed' && (
+                  {booking.status !== 'cancelled' && booking.status !== 'completed' && booking.status !== 'late_cancel' && booking.status !== 'no_show' && (
                     <div className="flex gap-3">
                       <button onClick={() => startEdit(booking)} className="text-xs text-verdigris hover:text-black font-medium transition-colors" style={{ fontFamily: 'var(--font-ui)' }}>
                         {t('dashboard.editBooking')}
                       </button>
                       {booking.can_cancel && (
-                        <button onClick={() => handleCancel(booking.id)} disabled={cancellingId === booking.id} className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
-                          {cancellingId === booking.id ? t('dashboard.cancelling') : t('dashboard.cancelBooking')}
+                        <button onClick={() => handleCancel(booking.id, booking.is_late_cancel)} disabled={cancellingId === booking.id} className={`text-xs font-medium transition-colors disabled:opacity-30 ${booking.is_late_cancel ? 'text-orange-600 hover:text-orange-700' : 'text-red-600 hover:text-red-700'}`} style={{ fontFamily: 'var(--font-ui)' }}>
+                          {cancellingId === booking.id ? t('dashboard.cancelling') : booking.is_late_cancel ? t('dashboard.cancelBooking') + ' (Late)' : t('dashboard.cancelBooking')}
                         </button>
                       )}
                     </div>

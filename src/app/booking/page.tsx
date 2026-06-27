@@ -30,6 +30,7 @@ export default function BookingPage() {
   const [selectedBarber, setSelectedBarber] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [restriction, setRestriction] = useState<{ level: string; message: string; count: number } | null>(null);
 
   const isMonday = selectedDate && new Date(selectedDate).getDay() === 1;
 
@@ -43,9 +44,13 @@ export default function BookingPage() {
       Promise.all([
         authFetch('/api/public/services.php').then(r => r.json()),
         authFetch('/api/public/barbers.php').then(r => r.json()),
-      ]).then(([servicesData, barbersData]) => {
+        authFetch('/api/bookings/check-restriction.php').then(r => r.json()),
+      ]).then(([servicesData, barbersData, restrictionData]) => {
         setServices((servicesData.services || []).filter((s: Service & { active?: number }) => s.active !== 0));
         setBarbers((barbersData.barbers || []).filter((b: Barber & { active?: number }) => b.active !== 0));
+        if (restrictionData.restriction_level !== 'none') {
+          setRestriction({ level: restrictionData.restriction_level, message: restrictionData.message, count: restrictionData.no_show_count });
+        }
       }).catch((err) => console.error('Failed to load booking data:', err));
     }
     setLoading(false);
@@ -118,6 +123,36 @@ export default function BookingPage() {
           {t('common.backToHome')}
         </Link>
 
+        {restriction && restriction.level === 'blocked' && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-red-50 flex items-center justify-center mx-auto mb-6">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+                <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              </svg>
+            </div>
+            <span className="section-label">{t('booking.accountSuspended')}</span>
+            <h1 className="text-2xl md:text-3xl text-black mb-4" style={{ fontFamily: 'var(--font-heading)' }}>{t('booking.cannotBook')}</h1>
+            <p className="text-text-secondary text-sm mb-8 max-w-sm mx-auto" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.blockedMessage')}</p>
+            <div className="p-6 bg-surface-alt border border-black/[0.04] max-w-sm mx-auto mb-8">
+              <p className="text-xs text-text-tertiary uppercase tracking-wider mb-3" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.contactSupport')}</p>
+              <p className="text-sm font-semibold text-black mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.callUs')}</p>
+              <p className="text-lg font-bold text-verdigris mb-3" style={{ fontFamily: 'var(--font-heading)' }}>{t('booking.phoneNumber')}</p>
+              <p className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.hoursLabel')}</p>
+              <p className="text-xs text-text-secondary" style={{ fontFamily: 'var(--font-ui)' }}>Tue - Sun: 9:00 AM - 8:00 PM</p>
+            </div>
+            <Link href="/" className="btn btn-secondary text-xs">{t('booking.backToHome')}</Link>
+          </div>
+        )}
+
+        {restriction && restriction.level !== 'blocked' && (
+          <div className={`mb-8 p-4 border text-sm ${restriction.level === 'pending_approval' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'}`} style={{ fontFamily: 'var(--font-ui)' }}>
+            <p className="font-semibold mb-1">{restriction.level === 'pending_approval' ? 'Admin Approval Required' : 'Restriction Notice'}</p>
+            <p className="text-xs">{restriction.message}</p>
+          </div>
+        )}
+
+        {(!restriction || restriction.level !== 'blocked') && (
+        <>
         <span className="section-label">{t('booking.bookAppointment')}</span>
         <h1 className="text-3xl md:text-5xl text-black mb-4 leading-[1.1]" style={{ fontFamily: 'var(--font-heading)' }}>{t('booking.bookYourExperience')}</h1>
         <p className="text-text-tertiary text-sm mb-12" style={{ fontFamily: 'var(--font-ui)' }}>{t('booking.step')} {step} {t('booking.of')} 3</p>
@@ -154,7 +189,7 @@ export default function BookingPage() {
                 {selectedServices.length} {t('booking.selectServices').split(' ')[0].toLowerCase()} · {totalDuration} {t('common.min')} · {formatPrice(totalPrice)}
               </div>
             )}
-            <button onClick={() => selectedServices.length > 0 && setStep(2)} disabled={selectedServices.length === 0} className="btn btn-primary w-full mt-8 disabled:opacity-30 disabled:cursor-not-allowed">
+            <button onClick={() => selectedServices.length > 0 && setStep(2)} disabled={selectedServices.length === 0 || restriction?.level === 'blocked'} className="btn btn-primary w-full mt-8 disabled:opacity-30 disabled:cursor-not-allowed">
               {t('booking.continue')}
             </button>
           </div>
@@ -236,11 +271,13 @@ export default function BookingPage() {
 
             <div className="flex gap-4">
               <button onClick={() => setStep(2)} className="btn btn-secondary flex-1">{t('booking.back')}</button>
-              <button onClick={handleConfirm} disabled={!selectedDate || !selectedTime || submitting} className="btn btn-primary flex-1 disabled:opacity-30 disabled:cursor-not-allowed">
+              <button onClick={handleConfirm} disabled={!selectedDate || !selectedTime || submitting || restriction?.level === 'blocked'} className="btn btn-primary flex-1 disabled:opacity-30 disabled:cursor-not-allowed">
                 {submitting ? t('booking.booking') : t('booking.confirmBooking')}
               </button>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>

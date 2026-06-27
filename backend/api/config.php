@@ -29,7 +29,10 @@ define('RATE_LIMIT_WINDOW', 900); // 15 minutes in seconds
 define('ALLOWED_ORIGIN', ENV === 'development' ? 'http://localhost:3000' : 'https://yourdomain.com');
 
 // Booking rules
-define('CANCEL_WINDOW_HOURS', 0); // hours before appointment to allow cancel (0 = cancel anytime until appointment)
+define('CANCEL_WINDOW_HOURS', 24);      // Free cancel: >24h before appointment
+define('LATE_CANCEL_THRESHOLD', 2);     // Late cancel: <2h before = strike
+define('BOOKING_MIN_LEAD_HOURS', 2);    // Minimum hours before a slot can be booked
+define('MAX_ACTIVE_BOOKINGS', 2);       // Max active future bookings per client
 define('BOOKING_REF_PREFIX', 'MNM');
 
 /**

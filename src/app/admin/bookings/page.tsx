@@ -7,12 +7,13 @@ import { authFetch } from '@/lib/authFetch';
 
 interface Booking {
   id: number; ref_code: string; service_title: string; barber_name: string; client_name: string | null; client_email: string;
-  booking_date: string; booking_time: string; status: string; price: number; notes: string | null;
+  booking_date: string; booking_time: string; status: string; price: number; notes: string | null; user_id: number | null; no_show_count: number;
 }
 interface Service { id: number; title: string; price: number; duration: number; }
 interface Barber { id: number; name: string; }
 interface Client { id: number; name: string; email: string; phone: string | null; }
 interface Slot { time: string; datetime: string; }
+interface Strike { id: number; strike_type: string; created_at: string; forgiven_at: string | null; ref_code: string; booking_date: string; booking_time: string; service_title: string; barber_name: string; forgiven_by_name: string | null; }
 
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -36,6 +37,9 @@ export default function AdminBookingsPage() {
   const [walkinPhone, setWalkinPhone] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [noShowId, setNoShowId] = useState<number | null>(null);
+  const [strikeHistory, setStrikeHistory] = useState<{ user: { name: string; no_show_count: number }; strikes: Strike[] } | null>(null);
+  const [loadingStrikes, setLoadingStrikes] = useState(false);
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
 
@@ -139,6 +143,109 @@ export default function AdminBookingsPage() {
       } else setError(data.error || 'Failed to cancel');
     } catch { setError('Failed to cancel'); }
     setCancellingId(null);
+  };
+
+  const handleNoShow = async (bookingId: number) => {
+    if (!confirm('Mark this booking as no-show? This will add a strike to the client.')) return;
+    setNoShowId(bookingId);
+    setError('');
+    setCreateSuccess('');
+    try {
+      const res = await authFetch('/api/admin/no-show.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreateSuccess(`${data.client_name} — No-show marked (${data.no_show_count}/3 strikes — ${data.restriction_level})`);
+        authFetch(`/api/admin/bookings.php?status=${filter}&search=${search}`).then(r => r.json()).then(d => setBookings(d.bookings || [])).catch(() => {});
+      } else setError(data.error || 'Failed to mark no-show');
+    } catch { setError('Failed to mark no-show'); }
+    setNoShowId(null);
+  };
+
+  const handleComplete = async (bookingId: number) => {
+    setNoShowId(bookingId);
+    setError('');
+    setCreateSuccess('');
+    try {
+      const res = await authFetch('/api/admin/bookings.php', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId, action: 'complete' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreateSuccess(`Booking completed`);
+        authFetch(`/api/admin/bookings.php?status=${filter}&search=${search}`).then(r => r.json()).then(d => setBookings(d.bookings || [])).catch(() => {});
+      } else setError(data.error || 'Failed to complete');
+    } catch { setError('Failed to complete'); }
+    setNoShowId(null);
+  };
+
+  const handleStart = async (bookingId: number) => {
+    setNoShowId(bookingId);
+    setError('');
+    setCreateSuccess('');
+    try {
+      const res = await authFetch('/api/admin/bookings.php', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId, action: 'start' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreateSuccess(`Booking started — client in the chair`);
+        authFetch(`/api/admin/bookings.php?status=${filter}&search=${search}`).then(r => r.json()).then(d => setBookings(d.bookings || [])).catch(() => {});
+      } else setError(data.error || 'Failed to start');
+    } catch { setError('Failed to start'); }
+    setNoShowId(null);
+  };
+
+  const handleApprove = async (bookingId: number) => {
+    if (!confirm('Approve this booking? Client has 2+ strikes and this booking was pending your approval.')) return;
+    setNoShowId(bookingId);
+    setError('');
+    setCreateSuccess('');
+    try {
+      const res = await authFetch('/api/admin/bookings.php', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId, action: 'approve' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreateSuccess(`Booking approved`);
+        authFetch(`/api/admin/bookings.php?status=${filter}&search=${search}`).then(r => r.json()).then(d => setBookings(d.bookings || [])).catch(() => {});
+      } else setError(data.error || 'Failed to approve');
+    } catch { setError('Failed to approve'); }
+    setNoShowId(null);
+  };
+
+  const fetchStrikeHistory = async (userId: number) => {
+    setLoadingStrikes(true);
+    setStrikeHistory(null);
+    try {
+      const res = await authFetch(`/api/admin/client-strikes.php?user_id=${userId}`);
+      const data = await res.json();
+      if (res.ok) setStrikeHistory(data);
+    } catch { /* ignore */ }
+    setLoadingStrikes(false);
+  };
+
+  const handleForgiveNoShow = async (bookingId: number) => {
+    setNoShowId(bookingId);
+    setError('');
+    setCreateSuccess('');
+    try {
+      const res = await authFetch('/api/admin/no-show.php', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreateSuccess(`${data.client_name} — No-show forgiven (${data.no_show_count} strikes remaining)`);
+        authFetch(`/api/admin/bookings.php?status=${filter}&search=${search}`).then(r => r.json()).then(d => setBookings(d.bookings || [])).catch(() => {});
+      } else setError(data.error || 'Failed to forgive');
+    } catch { setError('Failed to forgive'); }
+    setNoShowId(null);
   };
 
   const resetForm = () => {
@@ -282,10 +389,13 @@ export default function AdminBookingsPage() {
         <div className="flex gap-1 bg-surface-alt p-1">
           {[
             { value: '', label: t('admin.all') },
-            { value: 'pending', label: 'Pending' },
+            { value: 'pending_approval', label: 'To Approve' },
             { value: 'confirmed', label: 'Confirmed' },
+            { value: 'in_progress', label: 'In Progress' },
             { value: 'completed', label: 'Completed' },
             { value: 'cancelled', label: 'Cancelled' },
+            { value: 'late_cancel', label: 'Late Cancel' },
+            { value: 'no_show', label: 'No-Show' },
           ].map((f) => (
             <button key={f.value} onClick={() => setFilter(f.value)} className={`px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${filter === f.value ? 'bg-black text-white' : 'text-text-secondary hover:text-black'}`} style={{ fontFamily: 'var(--font-ui)' }}>
               {f.label}
@@ -326,11 +436,49 @@ export default function AdminBookingsPage() {
                   <td className="py-3 text-text-secondary">{formatDate(b.booking_date)}</td>
                   <td className="py-3 text-text-secondary">{formatTime(b.booking_time)}</td>
                   <td className="py-3">
-                    <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 ${b.status === 'confirmed' ? 'bg-verdigris/10 text-verdigris' : b.status === 'pending' ? 'bg-amber-50 text-amber-700' : b.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-black/5 text-text-tertiary'}`}>{b.status}</span>
+                    <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 ${
+                      b.status === 'confirmed' ? 'bg-verdigris/10 text-verdigris' :
+                      b.status === 'in_progress' ? 'bg-blue-50 text-blue-700 font-bold' :
+                      b.status === 'pending_approval' ? 'bg-amber-50 text-amber-700' :
+                      b.status === 'cancelled' ? 'bg-red-50 text-red-600' :
+                      b.status === 'late_cancel' ? 'bg-orange-50 text-orange-700 font-bold' :
+                      b.status === 'no_show' ? 'bg-red-50 text-red-700 font-bold' :
+                      'bg-black/5 text-text-tertiary'
+                    }`}>{b.status === 'no_show' ? 'NO-SHOW' : b.status === 'late_cancel' ? 'LATE CANCEL' : b.status === 'pending_approval' ? 'PENDING' : b.status === 'in_progress' ? 'IN PROGRESS' : b.status}</span>
                   </td>
                   <td className="py-3 font-medium">{formatPrice(b.price)}</td>
-                  <td className="py-3">
-                    {b.status !== 'cancelled' && b.status !== 'completed' && (
+                  <td className="py-3 flex gap-2">
+                    {b.status === 'no_show' && (
+                      <button onClick={() => handleForgiveNoShow(b.id)} disabled={noShowId === b.id} className="text-[10px] text-green-600 hover:text-green-700 font-medium uppercase tracking-wider disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
+                        Forgive
+                      </button>
+                    )}
+                    {b.status === 'pending_approval' && (
+                      <>
+                        <button onClick={() => b.user_id && fetchStrikeHistory(b.user_id)} disabled={!b.user_id} className="text-[10px] text-amber-600 hover:text-amber-700 font-medium uppercase tracking-wider disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
+                          {loadingStrikes ? '...' : 'Strikes'}
+                        </button>
+                        <button onClick={() => handleApprove(b.id)} disabled={noShowId === b.id} className="text-[10px] text-verdigris hover:text-verdigris/80 font-medium uppercase tracking-wider disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
+                          {noShowId === b.id ? '...' : 'Approve'}
+                        </button>
+                      </>
+                    )}
+                    {b.status === 'confirmed' && (
+                      <button onClick={() => handleStart(b.id)} disabled={noShowId === b.id} className="text-[10px] text-blue-600 hover:text-blue-700 font-medium uppercase tracking-wider disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
+                        {noShowId === b.id ? '...' : 'Start'}
+                      </button>
+                    )}
+                    {(b.status === 'confirmed' || b.status === 'in_progress') && (
+                      <button onClick={() => handleComplete(b.id)} disabled={noShowId === b.id} className="text-[10px] text-verdigris hover:text-verdigris/80 font-medium uppercase tracking-wider disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
+                        {noShowId === b.id ? '...' : 'Complete'}
+                      </button>
+                    )}
+                    {b.status === 'confirmed' && (
+                      <button onClick={() => handleNoShow(b.id)} disabled={noShowId === b.id} className="text-[10px] text-orange-600 hover:text-orange-700 font-medium uppercase tracking-wider disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
+                        {noShowId === b.id ? '...' : 'No-Show'}
+                      </button>
+                    )}
+                    {b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'no_show' && b.status !== 'late_cancel' && (
                       <button onClick={() => handleAdminCancel(b.id)} disabled={cancellingId === b.id} className="text-[10px] text-red-600 hover:text-red-700 font-medium uppercase tracking-wider disabled:opacity-30" style={{ fontFamily: 'var(--font-ui)' }}>
                         {cancellingId === b.id ? '...' : t('admin.cancel')}
                       </button>
@@ -340,6 +488,41 @@ export default function AdminBookingsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Strike History Modal */}
+      {strikeHistory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setStrikeHistory(null)}>
+          <div className="bg-white max-w-md w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold" style={{ fontFamily: 'var(--font-ui)' }}>Strike History</h3>
+                <p className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>{strikeHistory.user.name} — {strikeHistory.user.no_show_count} strike(s)</p>
+              </div>
+              <button onClick={() => setStrikeHistory(null)} className="text-text-tertiary hover:text-black text-lg">&times;</button>
+            </div>
+            {strikeHistory.strikes.length === 0 ? (
+              <p className="text-xs text-text-tertiary py-4 text-center" style={{ fontFamily: 'var(--font-ui)' }}>No strikes on record</p>
+            ) : (
+              <div className="space-y-3">
+                {strikeHistory.strikes.map((s) => (
+                  <div key={s.id} className={`p-3 border text-xs ${s.forgiven_at ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`} style={{ fontFamily: 'var(--font-ui)' }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`font-medium uppercase tracking-wider ${s.forgiven_at ? 'text-green-700' : 'text-red-700'}`}>{s.strike_type === 'no_show' ? 'No-Show' : 'Late Cancel'} {s.forgiven_at ? '(Forgiven)' : ''}</span>
+                      <span className="text-text-tertiary">{new Date(s.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <p className="text-text-secondary">Ref: {s.ref_code} — {s.service_title} with {s.barber_name}</p>
+                    <p className="text-text-secondary">{s.booking_date} at {s.booking_time}</p>
+                    {s.forgiven_at && <p className="text-green-600 mt-1">Forgiven by {s.forgiven_by_name}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-text-tertiary mt-4 pt-3 border-t border-black/[0.08]" style={{ fontFamily: 'var(--font-ui)' }}>
+              {strikeHistory.user.no_show_count >= 3 ? 'Client is BLOCKED — must call to book' : strikeHistory.user.no_show_count >= 2 ? 'Client needs admin approval for all bookings' : 'Client has a restriction warning'}
+            </p>
+          </div>
         </div>
       )}
     </div>

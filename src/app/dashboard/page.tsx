@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string } | null>(null);
   const [upcoming, setUpcoming] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [strikes, setStrikes] = useState<{ count: number; level: string; message: string } | null>(null);
   const { t, language } = useLanguage();
   const { formatPrice } = useCurrency();
 
@@ -50,6 +51,15 @@ export default function DashboardPage() {
       })
       .catch(() => console.error('Failed to load upcoming bookings'))
       .finally(() => setLoading(false));
+
+    authFetch('/api/bookings/check-restriction.php')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.no_show_count > 0) {
+          setStrikes({ count: data.no_show_count, level: data.restriction_level, message: data.message });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const greeting = () => {
@@ -80,6 +90,28 @@ export default function DashboardPage() {
       <p className="text-text-tertiary text-sm mb-10" style={{ fontFamily: 'var(--font-ui)' }}>
         {t('dashboard.scheduleVisit')}
       </p>
+
+      {strikes && (
+        <div className={`mb-8 p-4 border text-sm ${strikes.level === 'blocked' ? 'bg-red-50 border-red-200' : strikes.level === 'pending_approval' ? 'bg-orange-50 border-orange-200' : 'bg-yellow-50 border-yellow-200'}`} style={{ fontFamily: 'var(--font-ui)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={strikes.level === 'blocked' ? 'text-red-600' : strikes.level === 'pending_approval' ? 'text-orange-600' : 'text-yellow-600'}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span className={`font-semibold ${strikes.level === 'blocked' ? 'text-red-700' : strikes.level === 'pending_approval' ? 'text-orange-700' : 'text-yellow-700'}`}>
+                {strikes.level === 'blocked' ? t('dashboard.bookingSuspended') : strikes.level === 'pending_approval' ? t('dashboard.adminApprovalRequired') : t('dashboard.strikeWarning')}
+              </span>
+            </div>
+            <span className={`text-xs font-bold px-2 py-0.5 ${strikes.level === 'blocked' ? 'bg-red-100 text-red-700' : strikes.level === 'pending_approval' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>
+              {strikes.count}/3
+            </span>
+          </div>
+          <p className={`text-xs ${strikes.level === 'blocked' ? 'text-red-600' : strikes.level === 'pending_approval' ? 'text-orange-600' : 'text-yellow-600'}`}>{strikes.message}</p>
+          {strikes.level === 'blocked' && (
+            <p className="text-xs text-red-500 mt-2 font-medium">{t('dashboard.callToBook')}</p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 mb-10">
         <Link href="/booking" className="p-5 bg-black text-white hover:bg-verdigris transition-colors">

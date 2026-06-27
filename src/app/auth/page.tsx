@@ -11,11 +11,12 @@ export default function AuthPage() {
   const router = useRouter()
   const { t } = useLanguage()
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login')
-  const [forgotStep, setForgotStep] = useState<1 | 2>(1)
+  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
   const [token, setToken] = useState('')
   const [resetToken, setResetToken] = useState('')
   const [error, setError] = useState('')
@@ -95,7 +96,7 @@ export default function AuthPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, confirm_password: confirmPassword }),
+        body: JSON.stringify({ name, email, phone, password, confirm_password: confirmPassword }),
       })
       const data = await res.json()
 
@@ -139,14 +140,43 @@ export default function AuthPage() {
       })
       const data = await res.json()
 
-      if (data.token) {
-        setResetToken(data.token)
-        setSuccessMsg(t('auth.tokenGenerated'))
-        setForgotStep(2)
-      } else {
-        setSuccessMsg(data.message || t('auth.checkEmail'))
-        setForgotStep(2)
+      if (!res.ok) {
+        setError(data.error || 'Failed to send reset email')
+        setLoading(false)
+        return
       }
+
+      setSuccessMsg(data.message || t('auth.checkEmail'))
+      setForgotStep(2)
+    } catch {
+      setError(t('auth.connectionFailed'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyToken = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      const res = await fetch(`${API}/api/auth/verify-reset-token.php`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Invalid token')
+        setLoading(false)
+        return
+      }
+
+      setSuccessMsg(t('auth.tokenVerified'))
+      setForgotStep(3)
     } catch {
       setError(t('auth.connectionFailed'))
     } finally {
@@ -170,7 +200,7 @@ export default function AuthPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ password }),
       })
       const data = await res.json()
 
@@ -203,6 +233,7 @@ export default function AuthPage() {
     setPassword('')
     setConfirmPassword('')
     setName('')
+    setPhone('')
     setError('')
     setSuccessMsg('')
     setForgotStep(1)
@@ -317,6 +348,10 @@ export default function AuthPage() {
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full py-1.5 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
               </div>
               <div>
+                <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-0.5" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.phone')}</label>
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder={t('auth.phonePlaceholder')} className="w-full py-1.5 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors placeholder:text-text-tertiary/50" style={{ fontFamily: 'var(--font-ui)' }} />
+              </div>
+              <div>
                 <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-0.5" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.password')}</label>
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full py-1.5 pr-10 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
@@ -364,10 +399,10 @@ export default function AuthPage() {
           >
             <span className="section-label">{t('auth.resetTitle')}</span>
             <h1 className="text-2xl md:text-3xl text-black mb-2 leading-[1.1]" style={{ fontFamily: 'var(--font-heading)' }}>
-              {forgotStep === 1 ? t('auth.forgotTitle') : t('auth.setNewPasswordTitle')}
+              {forgotStep === 1 ? t('auth.forgotTitle') : forgotStep === 2 ? t('auth.verifyTokenTitle') : t('auth.setNewPasswordTitle')}
             </h1>
             <p className="text-text-tertiary text-xs mb-5" style={{ fontFamily: 'var(--font-ui)' }}>
-              {forgotStep === 1 ? t('auth.resetDesc1') : t('auth.resetDesc2')}
+              {forgotStep === 1 ? t('auth.resetDesc1') : forgotStep === 2 ? t('auth.resetDescToken') : t('auth.resetDesc2')}
             </p>
 
             {error && (
@@ -377,29 +412,32 @@ export default function AuthPage() {
               <p className="text-verdigris text-[10px] mb-3" style={{ fontFamily: 'var(--font-ui)' }}>{successMsg}</p>
             )}
 
-            {forgotStep === 1 ? (
+            {forgotStep === 1 && (
               <form onSubmit={handleForgotRequest} className="space-y-3">
                 <div>
                   <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.email')}</label>
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full py-2 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors" style={{ fontFamily: 'var(--font-ui)' }} />
                 </div>
                 <button type="submit" disabled={loading} className="btn btn-primary w-full mt-2 disabled:opacity-50">
-                  {loading ? t('auth.generating') : t('auth.generateToken')}
+                  {loading ? t('auth.sending') : t('auth.sendResetCode')}
                 </button>
               </form>
-            ) : (
-              <form onSubmit={handleForgotReset} className="space-y-3">
-                {resetToken && (
-                  <div className="p-2 bg-surface-alt border border-black/[0.08]">
-                    <p className="text-[9px] text-text-tertiary uppercase tracking-wider mb-0.5" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.yourToken')}</p>
-                    <p className="text-[10px] font-mono text-black break-all" style={{ fontFamily: 'var(--font-ui)' }}>{resetToken}</p>
-                    <button type="button" onClick={() => { navigator.clipboard.writeText(resetToken); setSuccessMsg(t('auth.tokenCopied')); }} className="text-[9px] text-verdigris mt-0.5" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.copyToken')}</button>
-                  </div>
-                )}
+            )}
+
+            {forgotStep === 2 && (
+              <form onSubmit={handleVerifyToken} className="space-y-3">
                 <div>
                   <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.resetToken')}</label>
                   <input type="text" value={token} onChange={(e) => setToken(e.target.value)} required placeholder={t('auth.resetTokenPlaceholder')} className="w-full py-2 border-b border-black/[0.08] text-sm text-black bg-transparent outline-none focus:border-verdigris transition-colors placeholder:text-text-tertiary/50" style={{ fontFamily: 'var(--font-ui)' }} />
                 </div>
+                <button type="submit" disabled={loading} className="btn btn-primary w-full mt-2 disabled:opacity-50">
+                  {loading ? t('auth.verifying') : t('auth.verifyToken')}
+                </button>
+              </form>
+            )}
+
+            {forgotStep === 3 && (
+              <form onSubmit={handleForgotReset} className="space-y-3">
                 <div>
                   <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('auth.newPassword')}</label>
                   <div className="relative">

@@ -1,8 +1,10 @@
 <?php
 /**
  * MANOM BarberShop - Admin Bookings API
- * GET  /api/admin/bookings.php          - List all bookings
- * POST /api/admin/bookings.php          - Create manual booking (no user_id)
+ * GET    /api/admin/bookings.php          - List all bookings
+ * POST   /api/admin/bookings.php          - Create manual booking (walk-in)
+ * PUT    /api/admin/bookings.php          - Actions: cancel, complete, start, approve
+ * DELETE /api/admin/bookings.php          - Delete a booking
  */
 
 require_once __DIR__ . '/../middleware.php';
@@ -27,9 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $sql = "
         SELECT 
             b.id, b.ref_code, b.booking_date, b.booking_time, b.status, b.notes, b.created_at,
+            b.cancelled_at, b.completed_at,
             s.title AS service_title, s.duration, s.price,
             br.name AS barber_name,
-            u.name AS client_name, u.email AS client_email, u.phone AS client_phone
+            u.name AS client_name, u.email AS client_email, u.phone AS client_phone,
+            u.no_show_count
         FROM bookings b
         JOIN services s ON b.service_id = s.id
         JOIN barbers br ON b.barber_id = br.id
@@ -51,8 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $params[] = $date;
     }
     if ($search) {
-        $sql .= " AND (b.ref_code LIKE ? OR u.name LIKE ? OR u.email LIKE ?)";
+        $sql .= " AND (b.ref_code LIKE ? OR u.name LIKE ? OR u.email LIKE ? OR b.notes LIKE ?)";
         $searchTerm = "%{$search}%";
+        $params[] = $searchTerm;
         $params[] = $searchTerm;
         $params[] = $searchTerm;
         $params[] = $searchTerm;
@@ -85,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     json_response(['bookings' => $bookings, 'total' => count($bookings)]);
 
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Admin creates manual booking (user_id nullable)
+    // Admin creates manual booking (walk-in: user_id nullable)
     $input = json_decode(file_get_contents('php://input'), true);
 
     if (!$input) {
@@ -102,6 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $bookingDate = sanitize_input($input['booking_date']);
     $bookingTime = sanitize_input($input['booking_time']);
     $userId = !empty($input['user_id']) ? (int)$input['user_id'] : null;
+    $guestName = isset($input['guest_name']) ? sanitize_input($input['guest_name']) : null;
+    $guestPhone = isset($input['guest_phone']) ? sanitize_input($input['guest_phone']) : null;
     $notes = isset($input['notes']) ? sanitize_input($input['notes']) : null;
 
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $bookingDate)) {
@@ -119,11 +126,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         $db->beginTransaction();
 
-        // Conflict check (Rule 3)
+        // Conflict check with lock
         $stmt = $db->prepare("
             SELECT id FROM bookings 
             WHERE barber_id = ? AND booking_date = ? AND booking_time = ? 
-            AND status IN ('pending', 'confirmed')
+            AND status IN ('pending', 'confirmed', 'pending_approval')
             FOR UPDATE
         ");
         $stmt->execute([$barberId, $bookingDate, $bookingTime]);
@@ -133,11 +140,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             json_response(['error' => 'Time slot already booked'], 409);
         }
 
+        // Build notes with walk-in info
+        $finalNotes = $notes;
+        if ($guestName || $guestPhone) {
+            $walkinInfo = 'Walk-in: ' . ($guestName ?: 'Guest');
+            if ($guestPhone) $walkinInfo .= ' | ' . $guestPhone;
+            if ($notes) $walkinInfo .= ' | Notes: ' . $notes;
+            $finalNotes = $walkinInfo;
+        }
+
         $stmt = $db->prepare("
             INSERT INTO bookings (ref_code, user_id, service_id, barber_id, booking_date, booking_time, status, notes)
             VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?)
         ");
-        $stmt->execute([$refCode, $userId, $serviceId, $barberId, $bookingDate, $bookingTime, $notes]);
+        $stmt->execute([$refCode, $userId, $serviceId, $barberId, $bookingDate, $bookingTime, $finalNotes]);
 
         $bookingId = $db->lastInsertId();
 
@@ -146,6 +162,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             VALUES (?, 'created', 'confirmed', ?)
         ");
         $stmt->execute([$bookingId, $admin['id']]);
+
+        // Notification
+        $clientLabel = $userId ? 'registered client' : 'walk-in';
+        $stmt = $db->prepare("
+            INSERT INTO notifications (type, booking_id, message)
+            VALUES ('new_booking', ?, ?)
+        ");
+        $stmt->execute([$bookingId, 'Manual booking created by admin (ref: ' . $refCode . ') — ' . $clientLabel]);
 
         $db->commit();
 
@@ -160,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
 } elseif ($_SERVER['REQUEST_METHOD'] === 'PUT') {
-    // Admin cancel booking
+    // Admin actions: cancel, complete, start (in_progress), approve (pending_approval)
     $input = json_decode(file_get_contents('php://input'), true);
 
     if (!$input || empty($input['booking_id'])) {
@@ -168,9 +192,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $bookingId = (int)$input['booking_id'];
-    $reason = isset($input['reason']) ? sanitize_input($input['reason']) : 'Cancelled by admin';
+    $action = isset($input['action']) ? sanitize_input($input['action']) : 'cancel';
+    $reason = isset($input['reason']) ? sanitize_input($input['reason']) : null;
 
-    $stmt = $db->prepare("SELECT id, status, ref_code FROM bookings WHERE id = ?");
+    $stmt = $db->prepare("
+        SELECT b.id, b.status, b.ref_code, b.user_id, u.name AS client_name
+        FROM bookings b
+        LEFT JOIN users u ON b.user_id = u.id
+        WHERE b.id = ?
+    ");
     $stmt->execute([$bookingId]);
     $booking = $stmt->fetch();
 
@@ -178,42 +208,143 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         json_response(['error' => 'Booking not found'], 404);
     }
 
-    if ($booking['status'] === 'cancelled') {
-        json_response(['error' => 'Booking is already cancelled'], 400);
+    switch ($action) {
+
+        case 'start':
+            // confirmed → in_progress (admin clicks "Start" when client sits down)
+            if ($booking['status'] !== 'confirmed') {
+                json_response(['error' => 'Only confirmed bookings can be started'], 400);
+            }
+            try {
+                $db->beginTransaction();
+                $db->prepare("UPDATE bookings SET status = 'in_progress', updated_at = NOW() WHERE id = ?")->execute([$bookingId]);
+                $db->prepare("
+                    INSERT INTO bookings_audit (booking_id, action, old_status, new_status, performed_by, notes)
+                    VALUES (?, 'started', 'confirmed', 'in_progress', ?, 'Client seated — service in progress')
+                ")->execute([$bookingId, $admin['id']]);
+                $db->commit();
+                json_response(['message' => 'Booking started', 'booking' => ['id' => $booking['id'], 'ref_code' => $booking['ref_code'], 'status' => 'in_progress']]);
+            } catch (Exception $e) {
+                $db->rollBack();
+                json_response(['error' => 'Failed to start booking'], 500);
+            }
+            break;
+
+        case 'complete':
+            // confirmed/in_progress → completed
+            if (!in_array($booking['status'], ['confirmed', 'in_progress'])) {
+                json_response(['error' => 'Only confirmed or in-progress bookings can be completed'], 400);
+            }
+            try {
+                $db->beginTransaction();
+                $oldStatus = $booking['status'];
+                $db->prepare("UPDATE bookings SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = ?")->execute([$bookingId]);
+                $db->prepare("
+                    INSERT INTO bookings_audit (booking_id, action, old_status, new_status, performed_by, notes)
+                    VALUES (?, 'completed', ?, 'completed', ?, 'Marked as completed by admin')
+                ")->execute([$bookingId, $oldStatus, $admin['id']]);
+
+                // Strike reset: completing a booking clears ALL strikes (client proved they're real)
+                if (!empty($booking['user_id'])) {
+                    $db->prepare("
+                        UPDATE users SET no_show_count = 0 WHERE id = ? AND no_show_count > 0
+                    ")->execute([$booking['user_id']]);
+                }
+
+                $db->commit();
+                json_response(['message' => 'Booking completed', 'booking' => ['id' => $booking['id'], 'ref_code' => $booking['ref_code']]]);
+            } catch (Exception $e) {
+                $db->rollBack();
+                json_response(['error' => 'Failed to complete booking'], 500);
+            }
+            break;
+
+        case 'approve':
+            // pending_approval → confirmed (admin approves a strike-2 client's booking)
+            if ($booking['status'] !== 'pending_approval') {
+                json_response(['error' => 'This booking is not pending approval'], 400);
+            }
+            try {
+                $db->beginTransaction();
+                $db->prepare("UPDATE bookings SET status = 'confirmed', updated_at = NOW() WHERE id = ?")->execute([$bookingId]);
+                $db->prepare("
+                    INSERT INTO bookings_audit (booking_id, action, old_status, new_status, performed_by, notes)
+                    VALUES (?, 'approved', 'pending_approval', 'confirmed', ?, 'Booking approved by admin')
+                ")->execute([$bookingId, $admin['id']]);
+
+                if ($booking['client_name']) {
+                    $stmt = $db->prepare("SELECT email FROM users WHERE id = ?");
+                    $stmt->execute([$booking['user_id']]);
+                    $clientEmail = $stmt->fetchColumn();
+                    if ($clientEmail) {
+                        $stmt = $db->prepare("
+                            INSERT INTO notifications (type, booking_id, message)
+                            VALUES ('new_booking', ?, ?)
+                        ");
+                        $stmt->execute([$bookingId, 'Booking ' . $booking['ref_code'] . ' approved for ' . $booking['client_name']]);
+                    }
+                }
+
+                $db->commit();
+                json_response(['message' => 'Booking approved', 'booking' => ['id' => $booking['id'], 'ref_code' => $booking['ref_code'], 'status' => 'confirmed']]);
+            } catch (Exception $e) {
+                $db->rollBack();
+                json_response(['error' => 'Failed to approve booking'], 500);
+            }
+            break;
+
+        default:
+            // Cancel action (default)
+            if ($booking['status'] === 'cancelled' || $booking['status'] === 'late_cancel') {
+                json_response(['error' => 'Booking is already cancelled'], 400);
+            }
+            if ($booking['status'] === 'completed') {
+                json_response(['error' => 'Cannot cancel a completed booking'], 400);
+            }
+
+            try {
+                $db->beginTransaction();
+                $oldStatus = $booking['status'];
+                $db->prepare("UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW() WHERE id = ?")->execute([$bookingId]);
+                $db->prepare("
+                    INSERT INTO bookings_audit (booking_id, action, old_status, new_status, performed_by, notes)
+                    VALUES (?, 'cancelled', ?, 'cancelled', ?, ?)
+                ")->execute([$bookingId, $oldStatus, $admin['id'], $reason ?: 'Cancelled by admin']);
+
+                $stmt = $db->prepare("
+                    INSERT INTO notifications (type, booking_id, message)
+                    VALUES ('cancellation', ?, ?)
+                ");
+                $stmt->execute([$bookingId, 'Booking ' . $booking['ref_code'] . ' cancelled by admin']);
+
+                $db->commit();
+                json_response([
+                    'message' => 'Booking cancelled',
+                    'booking' => ['id' => $booking['id'], 'ref_code' => $booking['ref_code'], 'status' => 'cancelled'],
+                ]);
+            } catch (Exception $e) {
+                $db->rollBack();
+                json_response(['error' => 'Failed to cancel booking'], 500);
+            }
+            break;
     }
 
-    if ($booking['status'] === 'completed') {
-        json_response(['error' => 'Cannot cancel a completed booking'], 400);
+} elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!$input || empty($input['booking_id'])) {
+        json_response(['error' => 'booking_id is required'], 400);
+    }
+    $bookingId = (int)$input['booking_id'];
+
+    $stmt = $db->prepare("SELECT id, status, ref_code FROM bookings WHERE id = ?");
+    $stmt->execute([$bookingId]);
+    $booking = $stmt->fetch();
+    if (!$booking) {
+        json_response(['error' => 'Booking not found'], 404);
     }
 
-    try {
-        $db->beginTransaction();
-
-        $oldStatus = $booking['status'];
-
-        $stmt = $db->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
-        $stmt->execute([$bookingId]);
-
-        $stmt = $db->prepare("
-            INSERT INTO bookings_audit (booking_id, action, old_status, new_status, performed_by, notes)
-            VALUES (?, 'cancelled', ?, 'cancelled', ?, ?)
-        ");
-        $stmt->execute([$bookingId, $oldStatus, $admin['id'], $reason]);
-
-        $db->commit();
-
-        json_response([
-            'message' => 'Booking cancelled',
-            'booking' => [
-                'id' => $booking['id'],
-                'ref_code' => $booking['ref_code'],
-                'status' => 'cancelled',
-            ],
-        ]);
-    } catch (Exception $e) {
-        $db->rollBack();
-        json_response(['error' => 'Failed to cancel booking'], 500);
-    }
+    $db->prepare("DELETE FROM bookings WHERE id = ?")->execute([$bookingId]);
+    json_response(['message' => 'Booking deleted', 'booking' => ['id' => $booking['id'], 'ref_code' => $booking['ref_code']]]);
 
 } else {
     json_response(['error' => 'Method not allowed'], 405);

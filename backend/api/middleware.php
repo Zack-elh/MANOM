@@ -179,25 +179,45 @@ function generate_ref_code(): string
 }
 
 /**
- * Auto-complete past bookings
- * Runs on page load - no cron needed
+ * Auto-complete past bookings + safety-net no-show detection
+ * Admin manually marks bookings as completed or no-show.
+ * This function only cleans up bookings older than 24h that admin forgot to handle.
+ * 
+ * Updated to handle in_progress status and set proper timestamps.
  */
 function auto_complete_bookings(): void
 {
     $db = db();
+
+    // Safety net: confirmed bookings past by >1 day → admin forgot, mark no_show
     $db->prepare("
         UPDATE bookings 
-        SET status = 'completed', updated_at = NOW() 
-        WHERE status = 'confirmed' 
-        AND booking_date < CURDATE()
+        SET status = 'no_show', updated_at = NOW()
+        WHERE status = 'confirmed'
+        AND booking_date < DATE_SUB(CURDATE(), INTERVAL 1 DAY)
     ")->execute();
 
-    // Also complete today's bookings that have passed
+    // Safety net: in_progress bookings past by >1 day → admin forgot, mark completed
     $db->prepare("
         UPDATE bookings 
-        SET status = 'completed', updated_at = NOW() 
-        WHERE status = 'confirmed' 
-        AND booking_date = CURDATE() 
-        AND booking_time < CURTIME()
+        SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+        WHERE status = 'in_progress'
+        AND booking_date < DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+    ")->execute();
+
+    // Safety net: pending_approval bookings past by >1 day → auto-reject
+    $db->prepare("
+        UPDATE bookings 
+        SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+        WHERE status = 'pending_approval'
+        AND booking_date < DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+    ")->execute();
+
+    // Cleanup: bookings past by >2 days in any active status → finalize
+    $db->prepare("
+        UPDATE bookings 
+        SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+        WHERE status IN ('confirmed', 'no_show', 'in_progress')
+        AND booking_date < DATE_SUB(CURDATE(), INTERVAL 2 DAY)
     ")->execute();
 }

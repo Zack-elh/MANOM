@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n/context';
 import { authFetch } from '@/lib/authFetch';
 
-interface Client { id: number; name: string; email: string; phone: string | null; created_at: string; total_bookings: number; active_bookings: number; }
+interface Client { id: number; name: string; email: string; phone: string | null; created_at: string; total_bookings: number; active_bookings: number; no_show_count: number; }
 
 export default function AdminClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -55,6 +55,7 @@ export default function AdminClientsPage() {
                 <th className="text-left py-3 text-[10px] text-text-tertiary uppercase tracking-wider font-medium">{t('admin.phoneCol')}</th>
                 <th className="text-left py-3 text-[10px] text-text-tertiary uppercase tracking-wider font-medium">{t('admin.bookingsCol')}</th>
                 <th className="text-left py-3 text-[10px] text-text-tertiary uppercase tracking-wider font-medium">{t('admin.activeCol')}</th>
+                <th className="text-left py-3 text-[10px] text-text-tertiary uppercase tracking-wider font-medium">Strikes</th>
                 <th className="text-left py-3 text-[10px] text-text-tertiary uppercase tracking-wider font-medium">{t('admin.joinedCol')}</th>
               </tr>
             </thead>
@@ -74,6 +75,17 @@ export default function AdminClientsPage() {
                   <td className="py-3">{c.total_bookings}</td>
                   <td className="py-3">
                     <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 ${c.active_bookings > 0 ? 'bg-verdigris/10 text-verdigris' : 'bg-black/5 text-text-tertiary'}`}>{c.active_bookings}</span>
+                  </td>
+                  <td className="py-3">
+                    {c.no_show_count >= 3 ? (
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-red-100 text-red-700">{c.no_show_count} — BLOCKED</span>
+                    ) : c.no_show_count === 2 ? (
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-orange-100 text-orange-700">{c.no_show_count} — PENDING APPROVAL</span>
+                    ) : c.no_show_count === 1 ? (
+                      <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 bg-yellow-100 text-yellow-700">{c.no_show_count} — WARNING</span>
+                    ) : (
+                      <span className="text-[10px] text-text-tertiary px-2 py-0.5">0</span>
+                    )}
                   </td>
                   <td className="py-3 text-text-tertiary text-xs">{formatDate(c.created_at)}</td>
                 </tr>

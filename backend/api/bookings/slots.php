@@ -93,12 +93,19 @@ foreach ($availability as $avail) {
 $allSlotsWithStatus = [];
 $now = new DateTime();
 $isToday = ($date === $now->format('Y-m-d'));
+$minLeadTime = new DateInterval('PT' . BOOKING_MIN_LEAD_HOURS . 'H');
+$earliestBookable = (clone $now)->add($minLeadTime);
 
 foreach ($allSlots as $slot) {
     $slotDateTime = new DateTime($date . ' ' . $slot);
 
     // Skip past slots if today
     if ($isToday && $slotDateTime <= $now) {
+        continue;
+    }
+
+    // Skip slots within minimum lead time (2h)
+    if ($slotDateTime <= $earliestBookable) {
         continue;
     }
 

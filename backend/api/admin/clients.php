@@ -21,7 +21,7 @@ $search = isset($_GET['search']) ? sanitize_input($_GET['search']) : null;
 
 $sql = "
     SELECT 
-        u.id, u.name, u.email, u.phone, u.role, u.created_at,
+        u.id, u.name, u.email, u.phone, u.role, u.created_at, u.no_show_count,
         COUNT(b.id) AS total_bookings,
         SUM(CASE WHEN b.status = 'confirmed' THEN 1 ELSE 0 END) AS active_bookings
     FROM users u

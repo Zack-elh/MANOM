@@ -5,6 +5,12 @@
  * 
  * Supports both single (service_id) and multi-service (service_ids array) booking.
  * Multi-service bookings are created atomically inside a DB transaction.
+ * 
+ * Rules enforced:
+ *   - 2h minimum lead time (cannot book slots starting within 2h)
+ *   - Max 2 active future bookings per client
+ *   - Strike 2 → booking goes to pending_approval (admin confirms manually)
+ *   - Race condition prevented via SELECT ... FOR UPDATE
  */
 
 require_once __DIR__ . '/../middleware.php';
@@ -65,6 +71,36 @@ if ($dateObj < new DateTime('today')) {
 }
 
 $db = db();
+
+// === RULE: 2-hour minimum lead time ===
+$slotDateTime = new DateTime($bookingDate . ' ' . $bookingTime);
+$now = new DateTime();
+$hoursUntilSlot = ($slotDateTime->getTimestamp() - $now->getTimestamp()) / 3600;
+if ($hoursUntilSlot < BOOKING_MIN_LEAD_HOURS) {
+    json_response([
+        'error' => 'Appointments must be booked at least ' . BOOKING_MIN_LEAD_HOURS . ' hours in advance',
+    ], 400);
+}
+
+// === RULE: Max active bookings per client ===
+$stmt = $db->prepare("
+    SELECT COUNT(*) FROM bookings
+    WHERE user_id = ? AND status IN ('pending', 'confirmed', 'in_progress', 'pending_approval')
+    AND (booking_date > CURDATE() OR (booking_date = CURDATE() AND booking_time > CURTIME()))
+");
+$stmt->execute([$user['id']]);
+$activeCount = (int)$stmt->fetchColumn();
+if ($activeCount >= MAX_ACTIVE_BOOKINGS) {
+    json_response([
+        'error' => 'You can have a maximum of ' . MAX_ACTIVE_BOOKINGS . ' active bookings at a time. Please cancel or complete an existing booking first.',
+    ], 400);
+}
+
+// === RULE: Strike 2 → pending_approval ===
+$stmt = $db->prepare("SELECT no_show_count FROM users WHERE id = ?");
+$stmt->execute([$user['id']]);
+$userStrikes = (int)$stmt->fetchColumn();
+$initialStatus = ($userStrikes >= 2) ? 'pending_approval' : 'confirmed';
 
 // Verify barber exists and is active
 $stmt = $db->prepare("SELECT id FROM barbers WHERE id = ? AND active = 1");
@@ -135,7 +171,7 @@ try {
     $stmt = $db->prepare("
         SELECT id FROM bookings 
         WHERE barber_id = ? AND booking_date = ? AND booking_time = ? 
-        AND status IN ('pending', 'confirmed')
+        AND status IN ('pending', 'confirmed', 'pending_approval')
         FOR UPDATE
     ");
     $stmt->execute([$barberId, $bookingDate, $bookingTime]);
@@ -149,7 +185,7 @@ try {
         SELECT b.id FROM bookings b
         JOIN services s ON b.service_id = s.id
         WHERE b.barber_id = ? AND b.booking_date = ? 
-        AND b.status IN ('pending', 'confirmed')
+        AND b.status IN ('pending', 'confirmed', 'pending_approval')
         AND b.booking_time < ? AND (ADDTIME(b.booking_time, SEC_TO_TIME(s.duration * 60)) > ?)
         FOR UPDATE
     ");
@@ -159,21 +195,37 @@ try {
         json_response(['error' => 'This time overlaps with an existing booking'], 409);
     }
 
-    // Insert the booking
+    // Insert the booking (status depends on strike count)
     $stmt = $db->prepare("
         INSERT INTO bookings (ref_code, user_id, service_id, barber_id, booking_date, booking_time, status, notes)
-        VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ");
-    $stmt->execute([$refCode, $user['id'], $primaryService['id'], $barberId, $bookingDate, $bookingTime, $finalNotes]);
+    $stmt->execute([$refCode, $user['id'], $primaryService['id'], $barberId, $bookingDate, $bookingTime, $initialStatus, $finalNotes]);
 
     $bookingId = $db->lastInsertId();
 
     // Audit log
     $stmt = $db->prepare("
-        INSERT INTO bookings_audit (booking_id, action, new_status, performed_by)
-        VALUES (?, 'created', 'confirmed', ?)
+        INSERT INTO bookings_audit (booking_id, action, new_status, performed_by, notes)
+        VALUES (?, 'created', ?, ?, ?)
     ");
-    $stmt->execute([$bookingId, $user['id']]);
+    $auditNote = $initialStatus === 'pending_approval' ? 'Booking pending admin approval (client has ' . $userStrikes . ' strikes)' : 'Created by client';
+    $stmt->execute([$bookingId, $initialStatus, $user['id'], $auditNote]);
+
+    // Create admin notification
+    if ($initialStatus === 'pending_approval') {
+        $stmt = $db->prepare("
+            INSERT INTO notifications (type, booking_id, message)
+            VALUES ('new_booking', ?, ?)
+        ");
+        $stmt->execute([$bookingId, 'New booking from ' . $user['name'] . ' (ref: ' . $refCode . ') — PENDING APPROVAL (' . $userStrikes . ' strikes)']);
+    } else {
+        $stmt = $db->prepare("
+            INSERT INTO notifications (type, booking_id, message)
+            VALUES ('new_booking', ?, ?)
+        ");
+        $stmt->execute([$bookingId, 'New booking from ' . $user['name'] . ' (ref: ' . $refCode . ')']);
+    }
 
     $db->commit();
 
@@ -212,7 +264,9 @@ try {
     });
 
     json_response([
-        'message' => 'Booking created successfully',
+        'message' => $initialStatus === 'pending_approval'
+            ? 'Booking created — pending admin approval due to account restrictions'
+            : 'Booking created successfully',
         'booking' => [
             'id'            => (int)$bookingId,
             'ref_code'      => $refCode,
@@ -221,7 +275,7 @@ try {
             'barber_id'     => $barberId,
             'booking_date'  => $bookingDate,
             'booking_time'  => $bookingTime,
-            'status'        => 'confirmed',
+            'status'        => $initialStatus,
             'duration'      => $maxDuration,
             'price'         => $totalPrice,
         ],

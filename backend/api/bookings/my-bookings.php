@@ -23,7 +23,7 @@ auto_complete_bookings();
 
 // Optional status filter
 $status = isset($_GET['status']) ? sanitize_input($_GET['status']) : null;
-$validStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+$validStatuses = ['pending', 'confirmed', 'in_progress', 'pending_approval', 'completed', 'cancelled', 'late_cancel', 'no_show'];
 
 if ($status && !in_array($status, $validStatuses)) {
     json_response(['error' => 'Invalid status filter'], 400);
@@ -79,8 +79,12 @@ foreach ($bookings as &$booking) {
     $hoursUntil = ($bookingDateTime->getTimestamp() - $now->getTimestamp()) / 3600;
 
     $booking['can_cancel'] = (
-        in_array($booking['status'], ['pending', 'confirmed']) &&
-        $hoursUntil > $cancelWindow
+        in_array($booking['status'], ['pending', 'confirmed', 'in_progress', 'pending_approval']) &&
+        $hoursUntil > 0
+    );
+    $booking['is_late_cancel'] = (
+        in_array($booking['status'], ['pending', 'confirmed', 'in_progress', 'pending_approval']) &&
+        $hoursUntil > 0 && $hoursUntil < LATE_CANCEL_THRESHOLD
     );
     $booking['hours_until'] = round($hoursUntil, 1);
 

@@ -3,7 +3,8 @@
  * MANOM BarberShop - Reset Password API
  * POST /api/auth/reset-password.php
  * 
- * Accepts token + new password, validates token, updates password.
+ * Step 3 of 3: User sets new password after token was verified in step 2.
+ * Uses session to confirm token was already verified.
  */
 
 require_once __DIR__ . '/../middleware.php';
@@ -16,14 +17,25 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['error' => 'Method not allowed'], 405);
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
-
-if (!$input || empty($input['token']) || empty($input['password'])) {
-    json_response(['error' => 'Token and password are required'], 400);
+// Must have verified token in session (from verify-reset-token.php step 2)
+if (empty($_SESSION['reset_token_verified']) || empty($_SESSION['reset_token_id'])) {
+    json_response(['error' => 'Token not verified. Please go back and verify your reset token first.'], 400);
 }
 
-$token = sanitize_input($input['token']);
-$password = $input['password']; // Don't sanitize password
+// Session token must be recent (within 15 minutes)
+$verifiedAt = $_SESSION['reset_token_verified_at'] ?? 0;
+if ((time() - $verifiedAt) > 900) {
+    unset($_SESSION['reset_token_verified'], $_SESSION['reset_token_id'], $_SESSION['reset_token_user_id'], $_SESSION['reset_token_verified_at']);
+    json_response(['error' => 'Token verification expired. Please verify your token again.'], 400);
+}
+
+$input = json_decode(file_get_contents('php://input'), true);
+
+if (!$input || empty($input['password'])) {
+    json_response(['error' => 'New password is required'], 400);
+}
+
+$password = $input['password'];
 
 // Password strength validation
 if (strlen($password) < 8) {
@@ -41,20 +53,26 @@ if (!preg_match('/[0-9]/', $password)) {
 
 $db = db();
 
-// Find valid token
+// Get the token from DB using session info
+$tokenId = $_SESSION['reset_token_id'];
+$userId = $_SESSION['reset_token_user_id'];
+
 $stmt = $db->prepare("
     SELECT id, user_id, expires_at FROM password_resets 
-    WHERE token = ? AND used = 0
+    WHERE id = ? AND user_id = ? AND used = 0
 ");
-$stmt->execute([$token]);
+$stmt->execute([$tokenId, $userId]);
 $resetToken = $stmt->fetch();
 
 if (!$resetToken) {
-    json_response(['error' => 'Invalid or already used reset token'], 400);
+    // Clean session
+    unset($_SESSION['reset_token_verified'], $_SESSION['reset_token_id'], $_SESSION['reset_token_user_id'], $_SESSION['reset_token_verified_at']);
+    json_response(['error' => 'Token no longer valid. Please start over.'], 400);
 }
 
-// Check expiry
+// Double-check expiry
 if (strtotime($resetToken['expires_at']) < time()) {
+    unset($_SESSION['reset_token_verified'], $_SESSION['reset_token_id'], $_SESSION['reset_token_user_id'], $_SESSION['reset_token_verified_at']);
     json_response(['error' => 'Reset token has expired. Please request a new one.'], 400);
 }
 
@@ -77,6 +95,9 @@ try {
     $stmt->execute([$resetToken['user_id'], $resetToken['id']]);
 
     $db->commit();
+
+    // Clean session
+    unset($_SESSION['reset_token_verified'], $_SESSION['reset_token_id'], $_SESSION['reset_token_user_id'], $_SESSION['reset_token_verified_at']);
 
     json_response([
         'message' => 'Password reset successfully. You can now sign in with your new password.',
