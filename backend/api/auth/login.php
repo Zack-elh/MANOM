@@ -38,7 +38,7 @@ if (!validate_email($email)) {
 
 // Find user
 $db = db();
-$stmt = $db->prepare("SELECT id, name, email, password, role FROM users WHERE email = ?");
+$stmt = $db->prepare("SELECT id, name, email, password, role, phone FROM users WHERE email = ?");
 $stmt->execute([$email]);
 $user = $stmt->fetch();
 
@@ -64,5 +64,6 @@ json_response([
         'name'  => $user['name'],
         'email' => $user['email'],
         'role'  => $user['role'],
+        'phone' => $user['phone'],
     ],
 ]);

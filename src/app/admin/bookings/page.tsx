@@ -24,7 +24,8 @@ export default function AdminBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ service_id: '', barber_id: '', booking_date: '', booking_time: '', notes: '' });
+  const [form, setForm] = useState({ barber_id: '', booking_date: '', booking_time: '', notes: '' });
+  const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -57,17 +58,17 @@ export default function AdminBookingsPage() {
 
   // Fetch available slots when barber + date + service are selected
   useEffect(() => {
-    if (!form.barber_id || !form.booking_date || !form.service_id) {
+    if (!form.barber_id || !form.booking_date || selectedServices.length === 0) {
       setSlots([]);
       return;
     }
     setLoadingSlots(true);
-    fetch(`/api/bookings/slots.php?barber_id=${form.barber_id}&date=${form.booking_date}&service_id=${form.service_id}`)
+    fetch(`/api/bookings/slots.php?barber_id=${form.barber_id}&date=${form.booking_date}&service_id=${selectedServices[0]}`)
       .then(r => r.json())
       .then(data => setSlots(data.slots || []))
       .catch((err) => console.error('Failed to load slots:', err))
       .finally(() => setLoadingSlots(false));
-  }, [form.barber_id, form.booking_date, form.service_id]);
+  }, [form.barber_id, form.booking_date, selectedServices]);
 
   // Client search debounce
   useEffect(() => {
@@ -82,13 +83,13 @@ export default function AdminBookingsPage() {
   }, [clientSearch, clientMode]);
 
   const handleCreate = async () => {
-    if (!form.service_id || !form.barber_id || !form.booking_date || !form.booking_time) return;
+    if (selectedServices.length === 0 || !form.barber_id || !form.booking_date || !form.booking_time) return;
     setCreating(true);
     setError('');
     setCreateSuccess('');
 
     const body: Record<string, unknown> = {
-      service_id: parseInt(form.service_id),
+      service_ids: selectedServices,
       barber_id: parseInt(form.barber_id),
       booking_date: form.booking_date,
       booking_time: form.booking_time,
@@ -99,11 +100,14 @@ export default function AdminBookingsPage() {
       body.user_id = selectedClient.id;
     } else if (clientMode === 'walkin') {
       body.user_id = null;
-      const info = [`Walk-in: ${walkinName || 'Guest'}`];
+      if (walkinName) body.guest_name = walkinName;
+      if (walkinPhone) body.guest_phone = walkinPhone;
+      const info: string[] = [];
+      if (walkinName) info.push(`Walk-in: ${walkinName}`);
       if (walkinEmail) info.push(walkinEmail);
       if (walkinPhone) info.push(walkinPhone);
       if (form.notes) info.push(`Notes: ${form.notes}`);
-      body.notes = info.join(' | ');
+      if (info.length > 0) body.notes = info.join(' | ');
     }
 
     try {
@@ -249,7 +253,8 @@ export default function AdminBookingsPage() {
   };
 
   const resetForm = () => {
-    setForm({ service_id: '', barber_id: '', booking_date: '', booking_time: '', notes: '' });
+    setForm({ barber_id: '', booking_date: '', booking_time: '', notes: '' });
+    setSelectedServices([]);
     setSlots([]);
     setClientMode('search');
     setClientSearch('');
@@ -263,7 +268,13 @@ export default function AdminBookingsPage() {
   const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const formatTime = (time: string) => { const [h, m] = time.split(':'); return `${parseInt(h) % 12 || 12}:${m} ${parseInt(h) >= 12 ? 'PM' : 'AM'}`; };
 
-  const selectedService = services.find(s => s.id === parseInt(form.service_id));
+  const selectedServicesData = services.filter(s => selectedServices.includes(s.id));
+  const totalPrice = selectedServicesData.reduce((sum, s) => sum + Number(s.price), 0);
+  const totalDuration = selectedServicesData.reduce((sum, s) => sum + s.duration, 0);
+
+  const toggleService = (id: number) => {
+    setSelectedServices(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  };
 
   return (
     <div>
@@ -283,13 +294,30 @@ export default function AdminBookingsPage() {
           <h3 className="text-sm font-semibold mb-4" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.createManualBooking')}</h3>
 
           {/* Service | Barber | Date */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.service')}</label>
-              <select value={form.service_id} onChange={(e) => setForm({ ...form, service_id: e.target.value, booking_time: '' })} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris" style={{ fontFamily: 'var(--font-ui)' }}>
-                <option value="">—</option>
-                {services.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.duration}min — {formatPrice(s.price)})</option>)}
-              </select>
+              <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.service')} (select multiple)</label>
+              <div className="border border-black/[0.08] bg-white max-h-48 overflow-y-auto">
+                {services.map((s) => (
+                  <label key={s.id} className={`flex items-center gap-2 px-3 py-2 text-xs cursor-pointer transition-colors hover:bg-surface-alt ${selectedServices.includes(s.id) ? 'bg-verdigris/5' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedServices.includes(s.id)}
+                      onChange={() => toggleService(s.id)}
+                      className="accent-verdigris"
+                    />
+                    <span className="font-medium" style={{ fontFamily: 'var(--font-ui)' }}>{s.title}</span>
+                    <span className="text-text-tertiary ml-auto" style={{ fontFamily: 'var(--font-ui)' }}>{s.duration}min — {formatPrice(s.price)}</span>
+                  </label>
+                ))}
+              </div>
+              {selectedServicesData.length > 0 && (
+                <div className="mt-2 flex gap-4 text-[10px] text-text-secondary" style={{ fontFamily: 'var(--font-ui)' }}>
+                  <span>{selectedServicesData.length} service{selectedServicesData.length > 1 ? 's' : ''}</span>
+                  <span>{totalDuration}min total</span>
+                  <span className="font-semibold text-black">{formatPrice(totalPrice)}</span>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.barber')}</label>
@@ -305,7 +333,7 @@ export default function AdminBookingsPage() {
           </div>
 
           {/* Time slots */}
-          {form.barber_id && form.booking_date && form.service_id && (
+          {form.barber_id && form.booking_date && selectedServices.length > 0 && (
             <div className="mb-4">
               <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-2" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.time')}</label>
               {loadingSlots ? (
@@ -371,14 +399,12 @@ export default function AdminBookingsPage() {
           </div>
 
           {/* Notes */}
-          {clientMode === 'search' && (
-            <div className="mb-4">
-              <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.notes')}</label>
-              <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris resize-none" style={{ fontFamily: 'var(--font-ui)' }} />
-            </div>
-          )}
+          <div className="mb-4">
+            <label className="text-[10px] text-text-tertiary uppercase tracking-wider block mb-1" style={{ fontFamily: 'var(--font-ui)' }}>{t('admin.notes')}</label>
+            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full py-2.5 px-3 border border-black/[0.08] text-sm bg-white outline-none focus:border-verdigris resize-none" style={{ fontFamily: 'var(--font-ui)' }} />
+          </div>
 
-          <button onClick={handleCreate} disabled={creating || !form.service_id || !form.barber_id || !form.booking_date || !form.booking_time || (clientMode === 'search' && !selectedClient)} className="btn btn-primary text-xs disabled:opacity-30">
+          <button onClick={handleCreate} disabled={creating || selectedServices.length === 0 || !form.barber_id || !form.booking_date || !form.booking_time || (clientMode === 'search' && !selectedClient)} className="btn btn-primary text-xs disabled:opacity-30">
             {creating ? t('admin.creating') : t('admin.createBooking')}
           </button>
         </div>

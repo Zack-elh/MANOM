@@ -71,7 +71,7 @@ export default {
     confirmPassword: 'Confirm Password',
     fullName: 'Full Name',
     phone: 'Phone Number',
-    phonePlaceholder: '',
+    phonePlaceholder: '+212 6 12 34 56 78',
     forgotPassword: 'Forgot Password?',
     signInCta: 'Sign In & Book',
     signUpCta: 'Create Account & Book',

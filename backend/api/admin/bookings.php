@@ -91,18 +91,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Admin creates manual booking (walk-in: user_id nullable)
+    // Supports both service_id (single) and service_ids (multi)
     $input = json_decode(file_get_contents('php://input'), true);
 
     if (!$input) {
         json_response(['error' => 'Invalid request body'], 400);
     }
 
-    $error = validate_required(['service_id', 'barber_id', 'booking_date', 'booking_time'], $input);
+    // Support both service_id and service_ids
+    $serviceIds = [];
+    if (isset($input['service_ids']) && is_array($input['service_ids'])) {
+        $serviceIds = array_map('intval', $input['service_ids']);
+    } elseif (isset($input['service_id'])) {
+        $serviceIds = [(int)$input['service_id']];
+    }
+
+    if (empty($serviceIds)) {
+        json_response(['error' => 'service_id or service_ids is required'], 400);
+    }
+
+    $error = validate_required(['barber_id', 'booking_date', 'booking_time'], $input);
     if ($error) {
         json_response(['error' => $error], 400);
     }
 
-    $serviceId = (int)$input['service_id'];
     $barberId = (int)$input['barber_id'];
     $bookingDate = sanitize_input($input['booking_date']);
     $bookingTime = sanitize_input($input['booking_time']);
@@ -120,6 +132,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (strlen($bookingTime) === 5) {
         $bookingTime .= ':00';
     }
+
+    // Fetch all selected services
+    $placeholders = implode(',', array_fill(0, count($serviceIds), '?'));
+    $stmt = $db->prepare("SELECT id, title, duration, price, active FROM services WHERE id IN ($placeholders)");
+    $stmt->execute($serviceIds);
+    $services = $stmt->fetchAll();
+
+    if (count($services) !== count($serviceIds)) {
+        json_response(['error' => 'One or more services not found'], 404);
+    }
+    foreach ($services as $svc) {
+        if (!$svc['active']) {
+            json_response(['error' => 'Service "' . $svc['title'] . '" is not available'], 400);
+        }
+    }
+
+    // Calculate combined info
+    $totalPrice = 0;
+    $maxDuration = 0;
+    $serviceNames = [];
+    foreach ($services as $svc) {
+        $totalPrice += (float)$svc['price'];
+        $maxDuration = max($maxDuration, (int)$svc['duration']);
+        $serviceNames[] = $svc['title'];
+    }
+    $primaryService = $services[0];
 
     $refCode = generate_ref_code();
 
@@ -140,12 +178,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             json_response(['error' => 'Time slot already booked'], 409);
         }
 
-        // Build notes with walk-in info
+        // Build notes with walk-in info and multi-service data
         $finalNotes = $notes;
+        if (count($services) > 1) {
+            $multiData = ['__multi__' => $serviceIds];
+            if ($notes) $multiData['note'] = $notes;
+            $finalNotes = json_encode($multiData);
+        }
         if ($guestName || $guestPhone) {
             $walkinInfo = 'Walk-in: ' . ($guestName ?: 'Guest');
             if ($guestPhone) $walkinInfo .= ' | ' . $guestPhone;
-            if ($notes) $walkinInfo .= ' | Notes: ' . $notes;
+            if ($finalNotes) $walkinInfo .= ' | Notes: ' . $finalNotes;
             $finalNotes = $walkinInfo;
         }
 
@@ -153,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             INSERT INTO bookings (ref_code, user_id, service_id, barber_id, booking_date, booking_time, status, notes)
             VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?)
         ");
-        $stmt->execute([$refCode, $userId, $serviceId, $barberId, $bookingDate, $bookingTime, $finalNotes]);
+        $stmt->execute([$refCode, $userId, $primaryService['id'], $barberId, $bookingDate, $bookingTime, $finalNotes]);
 
         $bookingId = $db->lastInsertId();
 
@@ -165,17 +208,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         // Notification
         $clientLabel = $userId ? 'registered client' : 'walk-in';
+        $serviceLabel = implode(', ', $serviceNames);
         $stmt = $db->prepare("
             INSERT INTO notifications (type, booking_id, message)
             VALUES ('new_booking', ?, ?)
         ");
-        $stmt->execute([$bookingId, 'Manual booking created by admin (ref: ' . $refCode . ') — ' . $clientLabel]);
+        $stmt->execute([$bookingId, 'Manual booking created by admin (ref: ' . $refCode . ') — ' . $serviceLabel . ' — ' . $clientLabel]);
 
         $db->commit();
 
         json_response([
             'message' => 'Booking created',
-            'booking' => ['id' => (int)$bookingId, 'ref_code' => $refCode],
+            'booking' => [
+                'id' => (int)$bookingId,
+                'ref_code' => $refCode,
+                'service' => implode(', ', $serviceNames),
+                'price' => $totalPrice,
+                'duration' => $maxDuration,
+            ],
         ], 201);
 
     } catch (Exception $e) {

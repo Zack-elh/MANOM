@@ -71,7 +71,7 @@ export default {
     confirmPassword: 'تأكيد كلمة المرور',
     fullName: 'الاسم الكامل',
     phone: 'رقم الهاتف',
-    phonePlaceholder: '',
+    phonePlaceholder: '+212 6 12 34 56 78',
     forgotPassword: 'نسيت كلمة المرور؟',
     signInCta: 'تسجيل الدخول والحجز',
     signUpCta: 'إنشاء الحساب والحجز',

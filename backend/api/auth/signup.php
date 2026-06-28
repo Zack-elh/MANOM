@@ -10,6 +10,8 @@ set_cors_headers();
 init_session();
 check_rate_limit('signup');
 
+$db = db();
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['error' => 'Method not allowed'], 405);
 }
@@ -32,10 +34,10 @@ $phone = sanitize_input($input['phone']);
 $password = $input['password'];
 $confirmPassword = isset($input['confirm_password']) ? $input['confirm_password'] : '';
 
-// Validate phone (digits, spaces, dashes, +, min 6 chars)
+// Validate phone: accept +212, +33, +1, etc. (6-15 digits after removing formatting)
 $cleanPhone = preg_replace('/[\s\-\(\)\+]/', '', $phone);
-if (strlen($cleanPhone) < 6 || !preg_match('/^[0-9]+$/', $cleanPhone)) {
-    json_response(['error' => 'Please enter a valid phone number'], 400);
+if (strlen($cleanPhone) < 6 || strlen($cleanPhone) > 15 || !preg_match('/^[0-9]+$/', $cleanPhone)) {
+    json_response(['error' => 'Enter a valid phone number (e.g. +212 6 12 34 56 78 or +33 6 12 34 56 78)'], 400);
 }
 
 // Check if phone already exists
@@ -70,7 +72,6 @@ if (strlen($name) < 2 || strlen($name) > 100) {
 }
 
 // Check if email already exists
-$db = db();
 $stmt = $db->prepare("SELECT id FROM users WHERE email = ?");
 $stmt->execute([$email]);
 

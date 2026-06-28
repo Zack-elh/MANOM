@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useLanguage } from '@/i18n/context';
+import { useLanguage, Language } from '@/i18n/context';
+import { useCurrency, Currency } from '@/context/CurrencyContext';
 
 interface User {
   id: number;
@@ -19,10 +20,15 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { t } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
+  const { currency, setCurrency } = useCurrency();
+  const currencyLabels: Record<Currency, string> = { USD: '$', EUR: '€', MAD: 'MAD' };
+  const langLabels: Record<Language, string> = { en: 'EN', fr: 'FR', ar: 'AR' };
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [currOpen, setCurrOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
 
   const navItems = [
     { href: '/dashboard', label: t('dashboard.overview'), icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -51,6 +57,13 @@ export default function DashboardLayout({
     setLoading(false);
   }, [router]);
 
+  useEffect(() => {
+    if (!currOpen && !langOpen) return;
+    const close = () => { setCurrOpen(false); setLangOpen(false); };
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [currOpen, langOpen]);
+
   const handleLogout = () => {
     localStorage.removeItem('manom_auth');
     router.push('/');
@@ -73,10 +86,39 @@ export default function DashboardLayout({
         <Link href="/" className="text-lg font-bold tracking-wider" style={{ fontFamily: 'var(--font-heading)' }}>
           MANOM
         </Link>
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-2 -mr-2"
-        >
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <button onClick={(e) => { e.stopPropagation(); setCurrOpen(!currOpen); setLangOpen(false); }} className="px-2 py-1 text-[10px] font-semibold tracking-wider text-black hover:text-verdigris transition-colors border border-black/[0.08]" style={{ fontFamily: 'var(--font-ui)' }}>
+              {currencyLabels[currency]}
+            </button>
+            {currOpen && (
+              <div className="absolute top-full right-0 mt-1 bg-white border border-black/[0.08] shadow-lg min-w-[60px] z-50">
+                {(['USD', 'EUR', 'MAD'] as Currency[]).map((c) => (
+                  <button key={c} onClick={(e) => { e.stopPropagation(); setCurrency(c); setCurrOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-[10px] uppercase tracking-wider hover:bg-surface-alt transition-colors ${currency === c ? 'text-verdigris font-semibold' : 'text-black'}`} style={{ fontFamily: 'var(--font-ui)' }}>
+                    {currencyLabels[c]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button onClick={(e) => { e.stopPropagation(); setLangOpen(!langOpen); setCurrOpen(false); }} className="px-2 py-1 text-[10px] font-semibold tracking-wider text-black hover:text-verdigris transition-colors border border-black/[0.08]" style={{ fontFamily: 'var(--font-ui)' }}>
+              {langLabels[language]}
+            </button>
+            {langOpen && (
+              <div className="absolute top-full right-0 mt-1 bg-white border border-black/[0.08] shadow-lg min-w-[60px] z-50">
+                {(['en', 'fr', 'ar'] as Language[]).map((l) => (
+                  <button key={l} onClick={(e) => { e.stopPropagation(); setLanguage(l); setLangOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-[10px] uppercase tracking-wider hover:bg-surface-alt transition-colors ${language === l ? 'text-verdigris font-semibold' : 'text-black'}`} style={{ fontFamily: 'var(--font-ui)' }}>
+                    {langLabels[l]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-2 -mr-2"
+          >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             {mobileOpen ? (
               <>
@@ -91,7 +133,8 @@ export default function DashboardLayout({
               </>
             )}
           </svg>
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* Mobile overlay */}
@@ -113,7 +156,7 @@ export default function DashboardLayout({
           </p>
         </div>
 
-        <nav className="flex-1 px-3 py-6">
+        <nav className="flex-1 px-3 py-4 overflow-y-auto min-h-0">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -137,10 +180,42 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        <div className="px-3 py-4 border-t border-black/[0.08]">
+        <div className="px-3 py-4 border-t border-black/[0.08] shrink-0">
           <div className="px-3 py-2 mb-2">
             <p className="text-sm font-medium text-black" style={{ fontFamily: 'var(--font-ui)' }}>{user.name}</p>
-            <p className="text-xs text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>{user.email}</p>
+            <p className="text-[10px] text-text-tertiary" style={{ fontFamily: 'var(--font-ui)' }}>{user.email}</p>
+          </div>
+          <div className="flex gap-1 mb-2">
+            {(['USD', 'EUR', 'MAD'] as Currency[]).map((c) => (
+              <button
+                key={c}
+                onClick={() => setCurrency(c)}
+                className={`flex-1 py-1 text-[9px] font-semibold tracking-wider border transition-colors ${
+                  currency === c
+                    ? 'bg-verdigris text-white border-verdigris'
+                    : 'bg-white text-text-secondary border-black/[0.08] hover:border-verdigris'
+                }`}
+                style={{ fontFamily: 'var(--font-ui)' }}
+              >
+                {currencyLabels[c]}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1 mb-3">
+            {(['en', 'fr', 'ar'] as Language[]).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLanguage(l)}
+                className={`flex-1 py-1 text-[9px] font-semibold tracking-wider border transition-colors ${
+                  language === l
+                    ? 'bg-verdigris text-white border-verdigris'
+                    : 'bg-white text-text-secondary border-black/[0.08] hover:border-verdigris'
+                }`}
+                style={{ fontFamily: 'var(--font-ui)' }}
+              >
+                {langLabels[l]}
+              </button>
+            ))}
           </div>
           <button
             onClick={handleLogout}

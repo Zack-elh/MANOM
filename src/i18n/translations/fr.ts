@@ -71,7 +71,7 @@ export default {
     confirmPassword: 'Confirmer le Mot de passe',
     fullName: 'Nom Complet',
     phone: 'Numero de Telephone',
-    phonePlaceholder: '',
+    phonePlaceholder: '+212 6 12 34 56 78',
     forgotPassword: 'Mot de passe oublie ?',
     signInCta: 'Se Connecter et Reserver',
     signUpCta: 'Creer le Compte et Reserver',
